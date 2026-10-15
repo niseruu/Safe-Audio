@@ -160,7 +160,8 @@ input[type="range"]::-moz-range-thumb { width: 1.2rem; height: 1.2rem; border: 2
 .action:hover { background: var(--signal); }
 
 /* About */
-.about { max-width: 96rem; margin: 0 auto; padding: 0 clamp(1rem, 3vw, 2.5rem) 1rem; }
+.about-area { position: relative; max-width: 96rem; margin: 0 auto; padding: 0 clamp(1rem, 3vw, 2.5rem) 1rem; }
+.about { margin: 0; }
 .about summary { display: inline-block; cursor: pointer; border-bottom: 2px solid var(--ink); font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .about summary:hover { background: var(--signal); }
 .about[open] summary { margin-bottom: 1rem; }
@@ -216,3 +217,7 @@ input[type="range"]::-moz-range-thumb { width: 1.2rem; height: 1.2rem; border: 2
   .toggle button, .filter button, .levels button, .quick button, .limit .toggle button { min-height: 2.75rem; }
   input[type="range"] { height: 2.75rem; }
 }
+.credit { position: absolute; top: .1rem; right: clamp(1rem, 3vw, 2.5rem); margin: 0; font-size: .72rem; color: var(--muted); }
+.credit a { border-bottom: 1px solid var(--line); }
+.credit a:hover { color: var(--ink); border-bottom-color: var(--ink); background: var(--signal); }
+@media (max-width: 44rem) { .credit { position: static; margin-top: .9rem; } }

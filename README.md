@@ -27,3 +27,7 @@ It is a static site. Open `index.html`, or serve the folder with any static serv
 ```
 node --test tests/curves.test.js
 ```
+
+## Author
+
+Built by [M Shafri Syamsuddin](https://shafri.pages.dev/), AI Engineer. The page carries a small credit linking back to the portfolio.
