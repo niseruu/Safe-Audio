@@ -62,15 +62,15 @@
         <p class="note" id="derived-v"></p>
       </section>
       <section class="card">
-        <h2><i>4</i> What you play <em>optional</em></h2>
-        <p class="help">Music is quieter than a full-scale tone. Using an EQ app? Add its preamp.</p>
+        <h2><i>4</i> What you play</h2>
+        <p class="help">Music is quieter than a full-scale tone (the worst case), so this defaults to typical music. Using an EQ app? Add its preamp.</p>
         <div class="row two">
           <label class="field">
             <span>Content</span>
             <select id="content" aria-label="Content type">
               <option value="0">Full-scale tone</option>
               <option value="-8">Loud master (−8 dB)</option>
-              <option value="-12">Typical music (−12 dB)</option>
+              <option value="-12" selected>Typical music (−12 dB)</option>
               <option value="-18">Classical (−18 dB)</option>
             </select>
           </label>
@@ -93,7 +93,7 @@
       </section>
       <section class="card span-2">
         <h2><i>6</i> Volume position</h2>
-        <p class="help">Move either slider or pick a level. They stay linked through the slider type you chose.</p>
+        <p class="help">Move either slider, or tap how long you listen each day to set the loudest safe volume.</p>
         <div class="volume-grid">
         <div class="vol-sliders">
           <label for="slider" class="slider-head"><span>Volume</span><output id="slider-out" for="slider">50%</output></label>
@@ -103,14 +103,22 @@
         <div class="slider-ends" aria-hidden="true"><span>0 dB</span><span id="spl-max-label">max</span></div>
         </div>
         <div class="vol-presets">
-          <p class="label">Listening levels and safe time per day</p>
-          <div class="levels" id="level-presets" role="group" aria-label="Listening level presets"></div>
+          <p class="label">How long do you listen each day?</p>
+          <div class="levels" id="time-presets" role="group" aria-label="Daily listening time">
+            <button type="button" data-hours="all"><b>All day</b><small></small></button>
+            <button type="button" data-hours="8"><b>8 h</b><small></small></button>
+            <button type="button" data-hours="4"><b>4 h</b><small></small></button>
+            <button type="button" data-hours="2"><b>2 h</b><small></small></button>
+            <button type="button" data-hours="1"><b>1 h</b><small></small></button>
+            <button type="button" data-hours="0.5"><b>30 min</b><small></small></button>
+          </div>
         </div>
       </div>
       </section>
     </form>
 
-    <div class="results" aria-live="polite">
+    <p class="sr-only" id="live" aria-live="polite"></p>
+    <div class="results">
       <section class="card result">
         <p class="label">Estimated level at the ear</p>
         <p class="spl"><b id="spl">—</b><span>dB SPL</span></p>
@@ -122,6 +130,7 @@
             <button type="button" data-std="niosh" aria-pressed="false">NIOSH · 85 dB</button>
           </div>
         </div>
+        <p class="note" id="limit-note"></p>
         <dl class="stats">
           <div><dt>Safe listening time</dt><dd id="safe-time">—</dd></div>
           <div><dt>Slider attenuation</dt><dd id="att">—</dd></div>
@@ -146,13 +155,13 @@
         <li><b>Slider to gain.</b> The slider type turns position into an attenuation in dB. Gain = 10^(dB ÷ 20).</li>
         <li><b>Voltage and power.</b> Volts = max output voltage × gain. Power P = V² ÷ Z.</li>
         <li><b>Level.</b> SPL = sensitivity (dB/mW) + 10·log10(P in mW) + content offset. A dB/V rating is converted first: dB/mW = dB/V − 10·log10(1000 ÷ Z).</li>
-        <li><b>Safe time.</b> Both limits halve the daily time for every 3 dB above their reference level: T = 8 h ÷ 2^((L − reference) ÷ 3). WHO / ITU treats 80 dBA for 40 hours a week as 8 hours a day at 80 dB. NIOSH allows 85 dBA for 8 hours. At 70 dB and below there is no time limit (the EPA's level for protecting hearing over a lifetime). WHO is the stricter default.</li>
+        <li><b>Safe time.</b> Both limits halve the daily time for every 3 dB above their reference level: T = 8 h ÷ 2^((L − reference) ÷ 3). WHO / ITU's limit is 80 dBA for 40 hours a week, which this treats as 8 hours a day on five days. If you listen every day, your daily time at 80 dB is closer to 5.7 hours, so stay a few dB below it. NIOSH allows 85 dBA for 8 hours a day. At 70 dB and below there is no time limit (the EPA's level for protecting hearing over a lifetime). WHO is the stricter default.</li>
       </ol>
       <ul>
         <li>It uses spec-sheet figures. It is a model, not a measurement. Only a calibrated meter or ear coupler measures the real level.</li>
         <li>The Windows, Android and Apple curves are approximations. Drivers and manufacturers change the real gain.</li>
         <li>Bluetooth headphones and many wireless dongles add their own gain on top of the system slider, which this does not model.</li>
-        <li>Levels are unweighted while NIOSH limits are in dBA, so the result is conservative for bass-heavy music.</li>
+        <li>Levels here are unweighted while both limits are in dBA, so the result is conservative for bass-heavy music.</li>
         <li>Ear coupling shifts the level by a few dB. Limits are population averages, not medical advice. If your ears ring or sound muffled after listening, turn it down.</li>
       </ul>
     </div>

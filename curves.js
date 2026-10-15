@@ -67,7 +67,7 @@
         return v <= 0 ? -Infinity : -range * (1 - v);
       },
       vol: function (db, opts) { return 1 + db / (opts && opts.range > 0 ? opts.range : 60); },
-      note: 'ALSA exposes each driver\'s own hardware dB scale, and the slider is linear in dB between the control\'s minimum and 0 dB. The range depends on the codec or DAC.'
+      note: 'ALSA exposes each driver\'s own hardware dB scale, and the slider is linear in dB between the control\'s minimum and 0 dB. The range depends on the codec or DAC. alsamixer\'s percentage is not always linear in dB, so this models the raw dB scale.'
     },
     generic: {
       id: 'generic', label: 'Custom dB', where: 'Any other device', steps: null, approx: false, hasRange: true,
@@ -94,6 +94,21 @@
     if (db >= 0) return 1;
     if (floorDb !== undefined && db <= floorDb) return 0;
     return clamp(CURVES[curveId].vol(db, opts), 0, 1);
+  }
+
+  /*
+   * The loudest slider position that is never louder than `db` attenuation.
+   * Stepped curves snap down to a real step, continuous ones to a whole percent.
+   * Returns { pos, step }, where step is the step number on stepped curves, else null.
+   */
+  function loudestPositionAtOrBelow(curveId, db, opts) {
+    var curve = CURVES[curveId];
+    if (db >= 0) return { pos: 1, step: curve.steps || null };
+    var floor = curve.hasRange ? -((opts && opts.range) || 60) : -Infinity;
+    var v = volumeFromDb(curveId, db, opts, floor);
+    var n = curve.steps || 100;
+    var k = Math.floor(v * n + 1e-9);
+    return { pos: k / n, step: curve.steps ? k : null };
   }
 
   /* Convert a sensitivity figure to dB SPL per mW. */
@@ -124,7 +139,7 @@
    * At or below UNLIMITED_DB (the EPA lifetime level) there is no time limit.
    */
   var STANDARDS = {
-    who: { id: 'who', label: 'WHO / ITU', ref: 80, note: '80 dB for 8 h a day (40 h a week)' },
+    who: { id: 'who', label: 'WHO / ITU', ref: 80, note: '80 dB for 40 h a week, which is 8 h a day on five days' },
     niosh: { id: 'niosh', label: 'NIOSH', ref: 85, note: '85 dB for 8 h a day' }
   };
   var UNLIMITED_DB = 70;
@@ -155,7 +170,7 @@
 
   var api = {
     CURVES: CURVES, ORDER: ORDER, ANDROID_HEADSET: ANDROID_HEADSET,
-    attenuationDb: attenuationDb, volumeFromDb: volumeFromDb, sensitivityPerMw: sensitivityPerMw,
+    attenuationDb: attenuationDb, volumeFromDb: volumeFromDb, loudestPositionAtOrBelow: loudestPositionAtOrBelow, sensitivityPerMw: sensitivityPerMw,
     compute: compute, safeSeconds: safeSeconds, tier: tier, risk: risk, standardOf: standardOf,
     STANDARDS: STANDARDS, UNLIMITED_DB: UNLIMITED_DB, clamp: clamp
   };

@@ -7,7 +7,7 @@
 
   var state = {
     sens: 100, unit: 'mw', z: 32, srcMode: 'v', vout: 1, pmw: 30, load: 32,
-    curve: 'linux', pos: 0.5, range: 60, offset: 0, preamp: 0, std: 'who'
+    curve: 'linux', pos: 0.5, range: 60, offset: -12, preamp: 0, std: 'who'
   };
 
   /* Max RMS voltage at 100% volume, from whichever form the spec sheet used. */
@@ -72,18 +72,24 @@
     if (mm === 60) { h += 1; mm = 0; }
     return h + ' h' + (mm ? ' ' + mm + ' min' : '');
   }
-  function fmtShort(sec) {
-    if (sec === Infinity) return 'unlimited';
-    if (sec >= 3600) return Math.round(sec / 360) / 10 + ' h';
-    if (sec >= 60) return Math.round(sec / 60) + ' min';
-    return Math.round(sec) + ' s';
-  }
-  /* Green when safe all day, through amber, to red at 15 dB over the daily limit. */
-  function levelColor(spl) {
+  /* Green when safe all day, through amber, to red at 15 dB over the daily limit. Small text is drawn darker for contrast. */
+  function levelColor(spl, small) {
     if (!isFinite(spl)) return '';
-    return 'hsl(' + Math.round(135 * (1 - SA.risk(spl, state.std))) + ', 85%, 31%)';
+    return 'hsl(' + Math.round(135 * (1 - SA.risk(spl, state.std))) + ', 85%, ' + (small ? 25 : 31) + '%)';
   }
-  var PRESETS = { who: [70, 80, 83, 86, 89, 92, 95], niosh: [70, 85, 88, 91, 94, 97, 100] };
+  var HOURS = { all: Infinity, '8': 28800, '4': 14400, '2': 7200, '1': 3600, '0.5': 1800 };
+  /* Level you can listen at for `secs` a day. */
+  function levelForSeconds(secs) {
+    return secs === Infinity ? SA.UNLIMITED_DB : SA.standardOf(state.std).ref + 3 * Math.log2(28800 / secs);
+  }
+  /* Loudest volume position that stays within the limit for `secs` a day, never louder than the target. */
+  function positionForSeconds(secs) {
+    var target = levelForSeconds(secs);
+    var top = calc(1).spl;
+    if (target >= top) return { pos: 1, level: target, any: true };
+    var r = SA.loudestPositionAtOrBelow(state.curve, target - top, { range: state.range });
+    return { pos: r.pos, step: r.step, level: target, any: false };
+  }
   var fmt1 = function (x) { return isFinite(x) ? x.toFixed(1) : '—'; };
 
   function currentCurve() { return SA.CURVES[state.curve]; }
@@ -127,7 +133,10 @@
   function drawChart(spl100) {
     var svg = $('curve-chart');
     svg.textContent = '';
-    var W = 520, H = 330, L = 38, R = 106, T = 8, B = 34;
+    var W = Math.max(280, Math.round(svg.getBoundingClientRect().width || 520));
+    var H = Math.round(Math.min(340, Math.max(230, W * 0.64)));
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    var L = 46, R = 108, T = 8, B = 34;
     var pw = W - L - R, ph = H - T - B;
     var yMax = Math.ceil((spl100 + 3) / 10) * 10;
     var yMin = Math.max(0, yMax - 90);
@@ -152,7 +161,8 @@
     el('rect', { x: L, y: T, width: pw, height: ph, fill: 'none', stroke: '#191919', 'stroke-width': 1.5 }, svg);
     el('line', { x1: L, x2: L + pw, y1: y(ref), y2: y(ref), stroke: '#191919', 'stroke-width': 1.2, 'stroke-dasharray': '5 3' }, svg);
     text(svg, L + 5, y(ref) - 4, ref + ' dB: 8 h limit', { 'font-weight': 700 });
-    text(svg, L + pw / 2, H - 5, 'Slider position (dB SPL up the side)', { 'text-anchor': 'middle', class: 'axis-title' });
+    text(svg, L + pw / 2, H - 5, 'Slider position', { 'text-anchor': 'middle', class: 'axis-title' });
+    text(svg, 10, T + ph / 2, 'dB SPL', { 'text-anchor': 'middle', class: 'axis-title', transform: 'rotate(-90 10 ' + (T + ph / 2) + ')' });
 
     var group = el('g', { 'clip-path': 'url(#plot-clip)', fill: 'none' }, svg);
     var line = function (id, bold) {
@@ -216,19 +226,14 @@
     splSlider.value = isFinite(r.spl) ? Math.min(Math.max(r.spl, 0), top) : 0;
     $('spl-out').textContent = isFinite(r.spl) ? r.spl.toFixed(1) + ' dB' : 'Muted';
     $('spl-max-label').textContent = top.toFixed(1) + ' dB max';
-    var presets = $('level-presets');
-    presets.textContent = '';
-    PRESETS[state.std].concat('max').forEach(function (level) {
-      var value = level === 'max' ? top : level;
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.dataset.spl = level;
-      var secs = SA.safeSeconds(value, state.std);
-      btn.innerHTML = '<b>' + (level === 'max' ? 'Max' : level + ' dB') + '</b><small>' +
-        (level === 'max' ? top.toFixed(1) + ' dB' : fmtShort(secs)) + '</small>';
-      btn.disabled = level !== 'max' && level > top;
-      if (isFinite(r.spl) && Math.abs(r.spl - value) < 0.3) btn.classList.add('is-active');
-      presets.appendChild(btn);
+    Array.prototype.forEach.call(document.querySelectorAll('[data-hours]'), function (btn) {
+      var secs = HOURS[btn.dataset.hours];
+      var t = positionForSeconds(secs);
+      var where = t.any ? 'any volume'
+        : t.pos === 0 ? 'mute only'
+        : '≤ ' + (t.step !== null ? 'step ' + t.step + '/' + curve.steps : Math.round(t.pos * 100) + '%');
+      btn.lastElementChild.textContent = (secs === Infinity ? '≤ 70 dB' : '≤ ' + Math.round(t.level) + ' dB') + ' · ' + where;
+      btn.classList.toggle('is-active', Math.abs(state.pos - t.pos) < 1e-9);
     });
     setPressed(document.querySelectorAll('[data-std]'), function (b) { return b.dataset.std === state.std; });
     $('slider-out').textContent = Math.round(state.pos * 100) + '%' + (curve.steps ? ' (step ' + Math.round(state.pos * max) + ' of ' + max + ')' : '');
@@ -254,7 +259,11 @@
     $('tier-text').textContent = t.name;
     $('safe-time').textContent = isFinite(r.spl) ? fmtTime(SA.safeSeconds(r.spl, state.std)) : 'Unlimited';
     $('spl').style.color = levelColor(r.spl);
-    $('spl-out').style.color = levelColor(r.spl);
+    $('spl-out').style.color = levelColor(r.spl, true);
+    $('limit-note').textContent = SA.standardOf(state.std).note + '.';
+    var liveText = isFinite(r.spl) ? r.spl.toFixed(1) + ' decibels, ' + t.name + ', safe for ' + fmtTime(SA.safeSeconds(r.spl, state.std)) + ' a day' : 'Muted';
+    var live = $('live');
+    if (live.textContent !== liveText) live.textContent = liveText;
     $('att').textContent = isFinite(r.attenuation) ? r.attenuation.toFixed(1) + ' dB' : 'Muted';
     var adj = state.offset + state.preamp;
     $('adj').textContent = (adj > 0 ? '+' : adj < 0 ? '−' : '') + Math.abs(adj).toFixed(1) + ' dB';
@@ -307,9 +316,10 @@
       state.srcMode = b.dataset.srcmode; render();
     } else if (b.dataset.std) {
       state.std = b.dataset.std; render();
-    } else if (b.dataset.spl) {
-      setPosFromSpl(b.dataset.spl === 'max' ? calc(1).spl : parseFloat(b.dataset.spl));
+    } else if (b.dataset.hours) {
+      state.pos = positionForSeconds(HOURS[b.dataset.hours]).pos;
       render();
+      b.focus();
     }
   });
 
@@ -319,6 +329,12 @@
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(location.href).then(function () { done(true); }, function () { done(false); });
     } else done(false);
+  });
+
+  var resizeTimer;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () { drawChart(calc(1).spl); }, 120);
   });
 
   /* ---------- Init ---------- */

@@ -141,3 +141,33 @@ test('volumeFromDb: 0 dB is max, the floor is mute, and values clamp to 0..1', (
   const lo = SA.volumeFromDb('android', -70, {}, -80);
   assert.ok(lo >= 0 && lo <= 0.011, String(lo));
 });
+
+test('loudestPositionAtOrBelow never lands louder than the target, and is the loudest that does not', () => {
+  const opts = { range: 60 };
+  for (const id of SA.ORDER) {
+    const n = SA.CURVES[id].steps || 100;
+    for (let target = -2; target >= -70; target -= 1.7) {
+      const r = SA.loudestPositionAtOrBelow(id, target, opts);
+      const att = SA.attenuationDb(id, r.pos, opts);
+      assert.ok(att <= target + 1e-6, `${id} ${target}: lands at ${att}`);
+      if (r.pos < 1) {
+        const next = SA.attenuationDb(id, r.pos + 1 / n, opts);
+        assert.ok(next > target - 1e-6, `${id} ${target}: could be louder (${next})`);
+      }
+      assert.strictEqual(r.step === null, !SA.CURVES[id].steps);
+    }
+  }
+});
+
+test('loudestPositionAtOrBelow: at or above 0 dB is max volume, and an unreachable target is mute', () => {
+  assert.strictEqual(SA.loudestPositionAtOrBelow('linux', 0).pos, 1);
+  assert.strictEqual(SA.loudestPositionAtOrBelow('android', 5).step, 15);
+  assert.strictEqual(SA.loudestPositionAtOrBelow('generic', -80, { range: 60 }).pos, 0);
+  assert.strictEqual(SA.loudestPositionAtOrBelow('android', -60).step, 0);
+});
+
+test('Android: the old nearest-step rounding could land louder than the target; this does not', () => {
+  // top level 114.95 dB, target 80 dB for 8 h => -34.95 dB
+  const r = SA.loudestPositionAtOrBelow('android', 80 - 114.95);
+  assert.ok(SA.attenuationDb('android', r.pos) <= 80 - 114.95 + 1e-6);
+});

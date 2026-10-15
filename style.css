@@ -107,7 +107,7 @@ input[type="number"]:focus, select:focus { background-color: #fffff0; }
   border: 1px solid var(--line); background: transparent; padding: .4rem .6rem; cursor: pointer;
   font-size: .72rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; line-height: 1.2;
 }
-.filter button small { display: block; font-size: .58rem; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--muted); }
+.filter button small { display: block; font-size: .66rem; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--muted); }
 .toggle button:hover, .filter button:hover, .quick button:hover { border-color: var(--ink); }
 .toggle button.is-active, .filter button.is-active { border-color: var(--ink); background: var(--signal); color: var(--ink); }
 .curve-note { margin-top: .6rem; }
@@ -141,16 +141,16 @@ input[type="range"]::-moz-range-thumb { width: 1.2rem; height: 1.2rem; border: 2
 .stats > div { padding: .55rem 0; border-bottom: 1px solid var(--line); }
 .stats > div:nth-child(odd) { padding-right: .8rem; }
 .stats > div:nth-child(even) { padding-left: .8rem; border-left: 1px solid var(--line); }
-.stats dt { font-size: .62rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.stats dt { font-size: .66rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .stats dd { font-size: 1.15rem; font-weight: 700; }
 .stats > div:nth-child(n+5) { border-bottom: 0; }
 
 /* Chart */
 .chart-card { padding: .7rem .8rem; }
 .chart { display: block; width: 100%; height: auto; }
-.chart text { font-family: var(--font-body); font-size: 13px; fill: var(--ink); }
+.chart text { font-family: var(--font-body); font-size: 12px; fill: var(--ink); }
 .chart .tick { fill: var(--muted); }
-.chart .axis-title { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; fill: var(--muted); }
+.chart .axis-title { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; fill: var(--muted); }
 .chart .grid { stroke: var(--line); stroke-width: 1; }
 
 /* Buttons */
@@ -160,7 +160,7 @@ input[type="range"]::-moz-range-thumb { width: 1.2rem; height: 1.2rem; border: 2
 .action:hover { background: var(--signal); }
 
 /* About */
-.about { max-width: 96rem; margin: 0 auto; padding: 0 clamp(1rem, 3vw, 2.5rem) 2rem; }
+.about { max-width: 96rem; margin: 0 auto; padding: 0 clamp(1rem, 3vw, 2.5rem) 1rem; }
 .about summary { display: inline-block; cursor: pointer; border-bottom: 2px solid var(--ink); font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .about summary:hover { background: var(--signal); }
 .about[open] summary { margin-bottom: 1rem; }
@@ -185,13 +185,13 @@ input[type="range"]::-moz-range-thumb { width: 1.2rem; height: 1.2rem; border: 2
 .slider-head.second { margin-top: .5rem; }
 .row.two + .note { margin-top: .6rem; }
 .quick button { text-transform: none; letter-spacing: .02em; }
-.slider-ends { display: flex; justify-content: space-between; margin-top: -.2rem; font-size: .66rem; font-weight: 700; color: var(--muted); }
+.slider-ends { display: flex; justify-content: space-between; margin-top: -.2rem; font-size: .7rem; font-weight: 700; color: var(--muted); }
 .quick button:disabled { cursor: not-allowed; opacity: .35; }
 .quick button:disabled:hover { background: transparent; border-color: var(--line); }
-.levels { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .4rem; margin-top: .6rem; }
+.levels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; margin-top: .6rem; }
 .levels button { display: grid; gap: .05rem; border: 1px solid var(--line); background: transparent; padding: .4rem .3rem; cursor: pointer; text-align: center; line-height: 1.2; }
-.levels button b { font-size: .8rem; }
-.levels button small { font-size: .62rem; font-weight: 500; color: var(--muted); }
+.levels button b { font-size: .95rem; }
+.levels button small { font-size: .7rem; font-weight: 500; color: var(--muted); }
 .levels button:hover { border-color: var(--ink); background: var(--panel); }
 .levels button.is-active { border-color: var(--ink); background: var(--signal); }
 .levels button.is-active small { color: var(--ink); }
@@ -209,4 +209,10 @@ input[type="range"]::-moz-range-thumb { width: 1.2rem; height: 1.2rem; border: 2
 @media (max-width: 44rem) {
   .sens-row { flex-wrap: wrap; }
   .sens-row > input, .sens-row > .toggle { flex: 1 1 100%; }
+}
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; padding: 0; }
+#limit-note { margin: -.4rem 0 .8rem; }
+@media (max-width: 44rem) {
+  .toggle button, .filter button, .levels button, .quick button, .limit .toggle button { min-height: 2.75rem; }
+  input[type="range"] { height: 2.75rem; }
 }
