@@ -7,7 +7,7 @@
 
   var state = {
     sens: 100, unit: 'mw', z: 32, srcMode: 'v', vout: 1, pmw: 30, load: 32,
-    curve: 'linux', pos: 0.5, range: 60, offset: 0
+    curve: 'linux', pos: 0.5, range: 60, offset: 0, preamp: 0
   };
 
   /* Max RMS voltage at 100% volume, from whichever form the spec sheet used. */
@@ -45,11 +45,12 @@
     if ((s = num('p', 0, 1)) !== null) state.pos = s;
     if ((s = num('r', 10, 120)) !== null) state.range = s;
     if ((s = num('o', -30, 0)) !== null) state.offset = s;
+    if ((s = num('pa', -30, 20)) !== null) state.preamp = s;
   }
   function writeHash() {
     var p = new URLSearchParams({
       s: state.sens, u: state.unit, z: state.z, vm: state.vout, sm: state.srcMode, pm: state.pmw, ld: state.load,
-      c: state.curve, p: state.pos.toFixed(3), r: state.range, o: state.offset
+      c: state.curve, p: state.pos.toFixed(3), r: state.range, o: state.offset, pa: state.preamp
     });
     try { history.replaceState(null, '', '#' + p.toString()); } catch (e) { /* ignore */ }
   }
@@ -77,7 +78,7 @@
   function calc(pos, curve) {
     return SA.compute({
       sens: state.sens, unit: state.unit, z: state.z, vmax: getVmax(),
-      curve: curve || state.curve, v: pos, range: state.range, offset: state.offset
+      curve: curve || state.curve, v: pos, range: state.range, offset: state.offset + state.preamp
     });
   }
 
@@ -100,7 +101,7 @@
   function drawChart(spl100) {
     var svg = $('curve-chart');
     svg.textContent = '';
-    var W = 520, H = 270, L = 38, R = 106, T = 8, B = 34;
+    var W = 520, H = 330, L = 38, R = 106, T = 8, B = 34;
     var pw = W - L - R, ph = H - T - B;
     var yMax = Math.ceil((spl100 + 3) / 10) * 10;
     var yMin = Math.max(0, yMax - 90);
@@ -146,7 +147,7 @@
     }
 
     SA.ORDER.forEach(function (id, idx) {
-      var yy = T + 12 + idx * 18;
+      var yy = T + 12 + idx * 20;
       var isSel = id === state.curve;
       el('line', {
         x1: L + pw + 8, x2: L + pw + 24, y1: yy - 3, y2: yy - 3,
@@ -204,8 +205,13 @@
     $('tier-text').textContent = t.name;
     $('safe-time').textContent = isFinite(r.spl) ? fmtTime(SA.safeSeconds(r.spl)) : 'Unlimited';
     $('att').textContent = isFinite(r.attenuation) ? r.attenuation.toFixed(1) + ' dB' : 'Muted';
+    var adj = state.offset + state.preamp;
+    $('adj').textContent = (adj > 0 ? '+' : adj < 0 ? '−' : '') + Math.abs(adj).toFixed(1) + ' dB';
+    var full = calc(1).spl;
+    $('spl-max').textContent = isFinite(full) ? full.toFixed(1) + ' dB' : '—';
     $('volts').textContent = r.volts >= 0.1 ? r.volts.toFixed(2) + ' V' : (r.volts * 1000).toFixed(1) + ' mV';
     $('power').textContent = r.powerMw >= 1 ? r.powerMw.toFixed(1) + ' mW' : r.powerMw.toFixed(3) + ' mW';
+    $('pos-note').textContent = curve.label + ' curve: ' + (isFinite(r.attenuation) ? r.attenuation.toFixed(1) + ' dB' : 'muted') + ' at this position.';
     $('curve-note').textContent = curve.note + (curve.approx ? ' (Approximation.)' : '');
 
     drawChart(calc(1).spl);
@@ -226,6 +232,7 @@
   bindNumber('pmw', 'pmw', 0.1, 5000);
   bindNumber('load', 'load', 1, 2000);
   bindNumber('range', 'range', 10, 120);
+  bindNumber('preamp', 'preamp', -30, 20);
 
   $('content').addEventListener('change', function (e) { state.offset = parseFloat(e.target.value); render(); });
   $('slider').addEventListener('input', function (e) { state.pos = parseFloat(e.target.value) / sliderMax(); render(); });
@@ -271,6 +278,7 @@
   $('pmw').value = state.pmw;
   $('load').value = state.load;
   $('range').value = state.range;
+  $('preamp').value = state.preamp;
   $('content').value = String(state.offset);
   if ($('content').value !== String(state.offset)) { $('content').value = '0'; state.offset = 0; }
   render();

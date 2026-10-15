@@ -20,7 +20,7 @@
   </header>
 
   <main class="layout">
-    <form class="col" id="form" autocomplete="off" onsubmit="return false">
+    <form class="inputs" id="form" autocomplete="off" onsubmit="return false">
       <section class="card">
         <h2><i>1</i> Headphone sensitivity</h2>
         <p class="help">On the spec sheet, as dB/mW or dB/V. Pick the unit it uses.</p>
@@ -36,45 +36,37 @@
       <section class="card">
         <h2><i>2</i> Headphone impedance</h2>
         <p class="help">Also on the spec sheet, in ohms (Ω).</p>
-        <input id="imp" type="number" inputmode="decimal" step="1" min="1" max="2000" value="32" aria-label="Impedance in ohms">
+        <div class="row">
+          <input id="imp" type="number" inputmode="decimal" step="1" min="1" max="2000" value="32" aria-label="Impedance in ohms">
+          <span class="unit">Ω</span>
+        </div>
       </section>
 
-      <section class="card">
+      <section class="card span-2">
         <h2><i>3</i> Source output at full volume</h2>
-        <p class="help">From your phone, computer or amp spec sheet. Not sure? Try 1 V.</p>
-        <div class="toggle" role="group" aria-label="Output form">
-          <button type="button" data-srcmode="v" class="is-active" aria-pressed="true">Volts RMS</button>
-          <button type="button" data-srcmode="mw" aria-pressed="false">mW into a load</button>
-        </div>
-        <div class="row mt" id="vout-field">
-          <input id="vmax" type="number" inputmode="decimal" step="0.05" min="0.05" max="20" value="1" aria-label="Max output in volts RMS">
-          <span class="unit">V</span>
-        </div>
-        <div class="row mt" id="pout-field" hidden>
-          <input id="pmw" type="number" inputmode="decimal" step="1" min="0.1" max="5000" value="30" aria-label="Max power in milliwatts">
-          <span class="unit">mW into</span>
-          <input id="load" type="number" inputmode="decimal" step="1" min="1" max="2000" value="32" aria-label="Load in ohms">
-          <span class="unit">Ω</span>
+        <p class="help">What your phone, computer or amp can deliver at 100% volume, from its spec sheet. Not sure? Try 1 V.</p>
+        <div class="row wrap">
+          <div class="toggle" role="group" aria-label="Output form">
+            <button type="button" data-srcmode="v" class="is-active" aria-pressed="true">Volts RMS</button>
+            <button type="button" data-srcmode="mw" aria-pressed="false">mW into a load</button>
+          </div>
+          <div class="row grow" id="vout-field">
+            <input id="vmax" type="number" inputmode="decimal" step="0.05" min="0.05" max="20" value="1" aria-label="Max output in volts RMS">
+            <span class="unit">V</span>
+          </div>
+          <div class="row grow" id="pout-field" hidden>
+            <input id="pmw" type="number" inputmode="decimal" step="1" min="0.1" max="5000" value="30" aria-label="Max power in milliwatts">
+            <span class="unit">mW into</span>
+            <input id="load" type="number" inputmode="decimal" step="1" min="1" max="2000" value="32" aria-label="Load in ohms">
+            <span class="unit">Ω</span>
+          </div>
         </div>
         <p class="note" id="derived-v"></p>
       </section>
 
-      <section class="card">
-        <h2><i>6</i> What you play <em>optional</em></h2>
-        <p class="help">Music is quieter on average than a full-scale tone.</p>
-        <select id="content" aria-label="Content type">
-          <option value="0">Full-scale tone (worst case)</option>
-          <option value="-8">Loud modern master (about −8 dB)</option>
-          <option value="-12">Typical music (about −12 dB)</option>
-          <option value="-18">Dynamic / classical (about −18 dB)</option>
-        </select>
-      </section>
-    </form>
-
-    <div class="col">
-      <section class="card">
+      <section class="card span-2">
         <h2><i>4</i> Volume slider type</h2>
-        <p class="help">Pick the system whose slider you use. Each maps position to loudness differently.</p>
+        <p class="help">Pick the system whose slider you use. Each one maps slider position to loudness differently.</p>
         <div class="filter" id="curve-buttons" role="group" aria-label="Volume slider type"></div>
         <div class="mt" id="range-field" hidden>
           <label class="inline">dB range below max <input id="range" type="number" inputmode="decimal" step="1" min="10" max="120" value="60"></label>
@@ -93,11 +85,32 @@
           <button type="button" data-pos="0.7">Loud 70%</button>
           <button type="button" data-pos="1">Max 100%</button>
         </div>
+        <p class="note pos-note" id="pos-note"></p>
       </section>
 
-    </div>
+      <section class="card">
+        <h2><i>6</i> What you play <em>optional</em></h2>
+        <p class="help">Music is quieter than a full-scale tone. Using an EQ app? Add its preamp.</p>
+        <div class="row two">
+          <label class="field">
+            <span>Content</span>
+            <select id="content" aria-label="Content type">
+              <option value="0">Full-scale tone</option>
+              <option value="-8">Loud master (−8 dB)</option>
+              <option value="-12">Typical music (−12 dB)</option>
+              <option value="-18">Classical (−18 dB)</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>EQ preamp (dB)</span>
+            <input id="preamp" type="number" inputmode="decimal" step="0.5" min="-30" max="20" value="0" aria-label="EQ preamp in decibels">
+          </label>
+        </div>
+        <p class="note">Preamp is the gain slider in your EQ app, usually negative (for example −6). A boosted band is still louder by its own boost.</p>
+      </section>
+    </form>
 
-    <div class="col results" aria-live="polite">
+    <div class="results" aria-live="polite">
       <section class="card result">
         <p class="label">Estimated level at the ear</p>
         <p class="spl"><b id="spl">—</b><span>dB SPL</span></p>
@@ -105,6 +118,8 @@
         <dl class="stats">
           <div><dt>Safe listening time</dt><dd id="safe-time">—</dd></div>
           <div><dt>Slider attenuation</dt><dd id="att">—</dd></div>
+          <div><dt>Content + preamp</dt><dd id="adj">—</dd></div>
+          <div><dt>Level at 100% volume</dt><dd id="spl-max">—</dd></div>
           <div><dt>Voltage</dt><dd id="volts">—</dd></div>
           <div><dt>Power</dt><dd id="power">—</dd></div>
         </dl>
@@ -112,7 +127,7 @@
 
       <section class="card chart-card">
         <p class="label">Level at each slider position</p>
-        <svg id="curve-chart" class="chart" viewBox="0 0 520 270" role="img" aria-label="Level against slider position for each curve"></svg>
+        <svg id="curve-chart" class="chart" viewBox="0 0 520 330" role="img" aria-label="Level against slider position for each curve"></svg>
       </section>
     </div>
   </main>

@@ -73,3 +73,10 @@ test('mute gives no level', () => {
   assert.strictEqual(r.spl, -Infinity);
   assert.strictEqual(SA.tier(r.spl).n, 0);
 });
+
+test('offset (content plus EQ preamp) shifts the level by the same number of dB', () => {
+  const base = { sens: 100, unit: 'mw', z: 32, vmax: 1, curve: 'linux', v: 0.5 };
+  const a = SA.compute(base).spl;
+  near(SA.compute({ ...base, offset: -6 }).spl, a - 6, 1e-9);
+  near(SA.compute({ ...base, offset: -12 + 3 }).spl, a - 9, 1e-9);
+});
