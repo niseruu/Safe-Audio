@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Safe Listening Calculator</title>
+  <meta name="description" content="Estimate how loud your headphones really are and how long you can listen safely, using the volume curves that Windows, Android, Apple and Linux actually use.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:ital,wdth,wght@0,50..150,100..900&family=Space+Grotesk:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip-link" href="#calculator">Skip to calculator</a>
+
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <a class="brand" href="#top">SAFE AUDIO</a>
+      <nav class="topnav" aria-label="Sections">
+        <a href="#calculator">01 Calculator</a>
+        <a href="#curves">02 Curves</a>
+        <a href="#exposure">03 Exposure</a>
+        <a href="#method">04 Method</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="grid-bg" aria-hidden="true"></div>
+      <div class="shell hero-inner">
+        <p class="eyebrow"><span class="chip">[00]</span> Hearing tools <span class="rule"></span></p>
+        <h1>Safe listening calculator</h1>
+        <p class="lede">Work out how loud your headphones really get and how long that level is safe. The volume slider follows the logarithmic curves that Linux, Windows, Android and Apple use, not a straight line.</p>
+      </div>
+    </section>
+
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee-track">
+        <span>85 dBA / 8 H <i>+</i> 3 dB EXCHANGE <i>+</i> LOG VOLUME <i>+</i> NIOSH <i>+</i></span>
+        <span>85 dBA / 8 H <i>+</i> 3 dB EXCHANGE <i>+</i> LOG VOLUME <i>+</i> NIOSH <i>+</i></span>
+      </div>
+    </div>
+
+    <section class="section" id="calculator">
+      <div class="shell">
+        <header class="section-heading">
+          <p class="eyebrow"><span class="chip">[01]</span> Calculator <span class="rule"></span></p>
+          <h2>Your level</h2>
+        </header>
+
+        <div class="calc">
+          <form class="panel inputs" id="form" autocomplete="off" onsubmit="return false">
+            <fieldset>
+              <legend>Headphone</legend>
+              <label class="field">
+                <span>Preset</span>
+                <select id="hp-preset"></select>
+              </label>
+              <div class="row">
+                <label class="field">
+                  <span>Sensitivity</span>
+                  <input id="sens" type="number" inputmode="decimal" step="0.1" min="40" max="140" value="100">
+                </label>
+                <div class="field">
+                  <span id="unit-label">Unit</span>
+                  <div class="toggle" role="group" aria-labelledby="unit-label">
+                    <button type="button" data-unit="mw" class="is-active" aria-pressed="true">dB/mW</button>
+                    <button type="button" data-unit="v" aria-pressed="false">dB/V</button>
+                  </div>
+                </div>
+              </div>
+              <label class="field">
+                <span>Impedance (Ω)</span>
+                <input id="imp" type="number" inputmode="decimal" step="1" min="1" max="2000" value="32">
+              </label>
+            </fieldset>
+
+            <fieldset>
+              <legend>Source</legend>
+              <label class="field">
+                <span>Preset</span>
+                <select id="src-preset"></select>
+              </label>
+              <label class="field">
+                <span>Max output at 100% volume (V RMS)</span>
+                <input id="vmax" type="number" inputmode="decimal" step="0.05" min="0.05" max="20" value="1">
+              </label>
+            </fieldset>
+
+            <fieldset>
+              <legend>Volume</legend>
+              <div class="field">
+                <span id="curve-label">Slider curve</span>
+                <div class="filter" id="curve-buttons" role="group" aria-labelledby="curve-label"></div>
+              </div>
+              <label class="field" id="range-field" hidden>
+                <span>dB range below max</span>
+                <input id="range" type="number" inputmode="decimal" step="1" min="10" max="120" value="60">
+              </label>
+              <div class="field">
+                <label for="slider" class="slider-head">
+                  <span>Volume position</span>
+                  <output id="slider-out" for="slider">50%</output>
+                </label>
+                <input id="slider" type="range" min="0" max="100" step="1" value="50">
+                <div class="quick" role="group" aria-label="Volume presets">
+                  <button type="button" data-pos="0.3">Low 30%</button>
+                  <button type="button" data-pos="0.5">Med 50%</button>
+                  <button type="button" data-pos="0.7">Loud 70%</button>
+                  <button type="button" data-pos="1">Max 100%</button>
+                </div>
+              </div>
+              <label class="field">
+                <span>What are you playing?</span>
+                <select id="content">
+                  <option value="0">Full-scale tone (worst case)</option>
+                  <option value="-8">Loud modern master (about −8 dB)</option>
+                  <option value="-12">Typical music (about −12 dB)</option>
+                  <option value="-18">Dynamic / classical (about −18 dB)</option>
+                </select>
+              </label>
+            </fieldset>
+          </form>
+
+          <div class="results" aria-live="polite">
+            <div class="panel readout">
+              <p class="label">Estimated level at the ear</p>
+              <p class="spl"><b id="spl">—</b><span>dB SPL</span></p>
+              <p class="tier"><span id="tier-chip" class="chip tier-1">—</span><span id="tier-text"></span></p>
+              <dl class="stats">
+                <div><dt>Safe listening time</dt><dd id="safe-time">—</dd></div>
+                <div><dt>Slider attenuation</dt><dd id="att">—</dd></div>
+                <div><dt>Voltage at the headphone</dt><dd id="volts">—</dd></div>
+                <div><dt>Power</dt><dd id="power">—</dd></div>
+              </dl>
+            </div>
+
+            <div class="panel dose">
+              <p class="label">Today's listening dose</p>
+              <p class="dose-value"><b id="dose-pct">0%</b><span id="dose-text">of the daily allowance</span></p>
+              <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Daily dose" id="dose-bar">
+                <i id="dose-fill"></i>
+                <u style="left:50%"></u><u style="left:85%"></u><u style="left:100%"></u>
+              </div>
+              <div class="bar-ticks" aria-hidden="true"><span style="left:50%">50</span><span style="left:85%">85 caution</span><span style="left:100%">100</span></div>
+
+              <div class="log-row">
+                <label class="field minutes">
+                  <span>Minutes at this level</span>
+                  <input id="minutes" type="number" inputmode="numeric" min="1" max="1440" value="30">
+                </label>
+                <button type="button" class="action" id="add"><span>Add to today</span><b>+</b></button>
+              </div>
+              <div class="quick" role="group" aria-label="Quick add">
+                <button type="button" data-add="30">Commute 30</button>
+                <button type="button" data-add="45">Album side 45</button>
+                <button type="button" data-add="60">Workout 60</button>
+                <button type="button" data-add="120">Movie 120</button>
+              </div>
+              <div class="log-actions">
+                <button type="button" class="link" id="undo">Undo</button>
+                <button type="button" class="link" id="reset">Reset today</button>
+                <span id="log-count" class="muted"></span>
+              </div>
+            </div>
+
+            <div class="share">
+              <button type="button" class="action action--yellow" id="share"><span>Copy link to this setup</span><b>↗</b></button>
+              <span id="share-status" class="muted" role="status"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--tight" id="curves">
+      <div class="shell">
+        <header class="section-heading">
+          <p class="eyebrow"><span class="chip">[02]</span> Volume curves <span class="rule"></span></p>
+          <h2>Slider vs level</h2>
+          <p class="description">The same slider position produces very different levels depending on the curve. Your selected setup is the heavy line.</p>
+        </header>
+        <div class="panel chart-panel">
+          <svg id="curve-chart" class="chart" viewBox="0 0 760 380" role="img" aria-label="Level against slider position for each curve"></svg>
+          <p class="curve-note" id="curve-note"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--tight" id="exposure">
+      <div class="shell">
+        <header class="section-heading">
+          <p class="eyebrow"><span class="chip">[03]</span> Safe exposure <span class="rule"></span></p>
+          <h2>Level vs time</h2>
+          <p class="description">Every 3 dB louder halves the time. The dot marks your current level.</p>
+        </header>
+        <div class="exposure">
+          <div class="panel chart-panel">
+            <svg id="time-chart" class="chart" viewBox="0 0 760 380" role="img" aria-label="Safe daily listening time against level"></svg>
+          </div>
+          <div class="panel table-panel">
+            <table>
+              <caption>NIOSH daily limit by level</caption>
+              <thead><tr><th scope="col">Level</th><th scope="col">Safe time</th></tr></thead>
+              <tbody id="limit-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="marquee marquee--dark" aria-hidden="true">
+      <div class="marquee-track marquee-track--reverse">
+        <span>CUBIC / TAPER / STEPS <i>+</i> 20·LOG10(GAIN) <i>+</i> V² ÷ Z <i>+</i></span>
+        <span>CUBIC / TAPER / STEPS <i>+</i> 20·LOG10(GAIN) <i>+</i> V² ÷ Z <i>+</i></span>
+      </div>
+    </div>
+
+    <section class="section" id="method">
+      <div class="shell">
+        <header class="section-heading">
+          <p class="eyebrow"><span class="chip">[04]</span> Method <span class="rule"></span></p>
+          <h2>The maths</h2>
+        </header>
+        <div class="method">
+          <ol class="steps">
+            <li><b>Slider to gain.</b> The curve turns the slider position into an attenuation in dB, and the gain is 10^(dB ÷ 20).</li>
+            <li><b>Voltage.</b> Volts at the headphone = max output voltage × gain.</li>
+            <li><b>Power.</b> P = V² ÷ Z, shown in mW.</li>
+            <li><b>Level.</b> SPL = sensitivity (dB/mW) + 10·log10(P in mW) + content offset. A dB/V rating is converted first: dB/mW = dB/V − 10·log10(1000 ÷ Z).</li>
+            <li><b>Safe time.</b> NIOSH allows 85 dBA for 8 hours and halves the time for every 3 dB above: T = 8 h ÷ 2^((L − 85) ÷ 3).</li>
+            <li><b>Dose.</b> Each listening session adds its minutes divided by the safe time at its level. 100% is the daily allowance.</li>
+          </ol>
+          <div class="callout">
+            <h3>Limits of this estimate</h3>
+            <ul>
+              <li>It uses spec-sheet figures. It is a model, not a measurement. Only a calibrated meter or ear coupler measures the real level.</li>
+              <li>The Windows, Android and Apple curves are approximations. Drivers, manufacturers and Bluetooth codecs change the real gain.</li>
+              <li>Bluetooth headphones and many wireless dongles apply their own gain stage on top of the OS slider, which this does not model.</li>
+              <li>The levels are unweighted. NIOSH limits are in dBA, so the result is conservative for music with heavy bass.</li>
+              <li>Ear coupling shifts the level by a few dB. Open-back versus closed-back and the IEM tip seal both matter.</li>
+              <li>Limits describe population averages. This is not medical advice. Ringing or muffled hearing after listening means turn it down and rest your ears.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="shell footer-inner">
+      <span>© 2026 / SAFE AUDIO</span>
+      <a href="#top">HOME ↑</a>
+    </div>
+  </footer>
+
+  <script src="curves.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
