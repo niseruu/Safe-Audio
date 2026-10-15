@@ -187,3 +187,21 @@ input[type="range"]::-moz-range-thumb { width: 1.2rem; height: 1.2rem; border: 2
 .slider-ends { display: flex; justify-content: space-between; margin-top: -.2rem; font-size: .66rem; font-weight: 700; color: var(--muted); }
 .quick button:disabled { cursor: not-allowed; opacity: .35; }
 .quick button:disabled:hover { background: transparent; border-color: var(--line); }
+.levels { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .4rem; margin-top: .6rem; }
+.levels button { display: grid; gap: .05rem; border: 1px solid var(--line); background: transparent; padding: .4rem .3rem; cursor: pointer; text-align: center; line-height: 1.2; }
+.levels button b { font-size: .8rem; }
+.levels button small { font-size: .62rem; font-weight: 500; color: var(--muted); }
+.levels button:hover { border-color: var(--ink); background: var(--panel); }
+.levels button.is-active { border-color: var(--ink); background: var(--signal); }
+.levels button.is-active small { color: var(--ink); }
+.levels button:disabled { cursor: not-allowed; opacity: .35; }
+.levels button:disabled:hover { border-color: var(--line); background: transparent; }
+.limit { display: flex; align-items: center; justify-content: space-between; gap: .8rem; margin-bottom: .9rem; }
+.limit .label { margin: 0; }
+.limit .toggle { flex: 0 0 auto; }
+.limit .toggle button { min-height: 2rem; font-size: .66rem; }
+.volume-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.4rem; align-items: start; }
+.vol-presets .label { margin-bottom: 0; }
+.levels { margin-top: .4rem; }
+.limit .toggle button { text-transform: none; white-space: nowrap; letter-spacing: .02em; }
+@media (max-width: 44rem) { .volume-grid { grid-template-columns: 1fr; } }

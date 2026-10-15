@@ -7,7 +7,7 @@
 
   var state = {
     sens: 100, unit: 'mw', z: 32, srcMode: 'v', vout: 1, pmw: 30, load: 32,
-    curve: 'linux', pos: 0.5, range: 60, offset: 0, preamp: 0
+    curve: 'linux', pos: 0.5, range: 60, offset: 0, preamp: 0, std: 'who'
   };
 
   /* Max RMS voltage at 100% volume, from whichever form the spec sheet used. */
@@ -46,17 +46,19 @@
     if ((s = num('r', 10, 120)) !== null) state.range = s;
     if ((s = num('o', -30, 0)) !== null) state.offset = s;
     if ((s = num('pa', -30, 20)) !== null) state.preamp = s;
+    if (SA.STANDARDS[p.get('std')]) state.std = p.get('std');
   }
   function writeHash() {
     var p = new URLSearchParams({
       s: state.sens, u: state.unit, z: state.z, vm: state.vout, sm: state.srcMode, pm: state.pmw, ld: state.load,
-      c: state.curve, p: state.pos.toFixed(3), r: state.range, o: state.offset, pa: state.preamp
+      c: state.curve, p: state.pos.toFixed(3), r: state.range, o: state.offset, pa: state.preamp, std: state.std
     });
     try { history.replaceState(null, '', '#' + p.toString()); } catch (e) { /* ignore */ }
   }
 
   /* ---------- Formatting ---------- */
   function fmtTime(sec) {
+    if (sec === Infinity) return 'Unlimited';
     if (!isFinite(sec)) return '—';
     if (sec > 86400) return 'Over 24 h';
     if (sec < 10) return sec.toFixed(1) + ' s';
@@ -70,6 +72,18 @@
     if (mm === 60) { h += 1; mm = 0; }
     return h + ' h' + (mm ? ' ' + mm + ' min' : '');
   }
+  function fmtShort(sec) {
+    if (sec === Infinity) return 'unlimited';
+    if (sec >= 3600) return Math.round(sec / 360) / 10 + ' h';
+    if (sec >= 60) return Math.round(sec / 60) + ' min';
+    return Math.round(sec) + ' s';
+  }
+  /* Green when safe all day, through amber, to red at 15 dB over the daily limit. */
+  function levelColor(spl) {
+    if (!isFinite(spl)) return '';
+    return 'hsl(' + Math.round(135 * (1 - SA.risk(spl, state.std))) + ', 85%, 31%)';
+  }
+  var PRESETS = { who: [70, 80, 83, 86, 89, 92, 95], niosh: [70, 85, 88, 91, 94, 97, 100] };
   var fmt1 = function (x) { return isFinite(x) ? x.toFixed(1) : '—'; };
 
   function currentCurve() { return SA.CURVES[state.curve]; }
@@ -123,8 +137,9 @@
     var clip = el('clipPath', { id: 'plot-clip' }, svg);
     el('rect', { x: L, y: T, width: pw, height: ph }, clip);
 
-    if (yMax > 100) el('rect', { x: L, y: y(yMax), width: pw, height: y(100) - y(yMax), fill: '#d6342b', opacity: .12 }, svg);
-    if (yMax > 85) el('rect', { x: L, y: y(Math.min(100, yMax)), width: pw, height: y(85) - y(Math.min(100, yMax)), fill: '#fffa00', opacity: .6 }, svg);
+    var ref = SA.standardOf(state.std).ref, hi = ref + 15;
+    if (yMax > hi) el('rect', { x: L, y: y(yMax), width: pw, height: y(hi) - y(yMax), fill: '#d6342b', opacity: .12 }, svg);
+    if (yMax > ref) el('rect', { x: L, y: y(Math.min(hi, yMax)), width: pw, height: y(ref) - y(Math.min(hi, yMax)), fill: '#fffa00', opacity: .6 }, svg);
 
     for (var g = Math.ceil(yMin / 10) * 10; g <= yMax; g += 10) {
       el('line', { x1: L, x2: L + pw, y1: y(g), y2: y(g), class: 'grid' }, svg);
@@ -135,8 +150,8 @@
       text(svg, x(q / 100), T + ph + 15, q + '%', { 'text-anchor': 'middle', class: 'tick' });
     }
     el('rect', { x: L, y: T, width: pw, height: ph, fill: 'none', stroke: '#191919', 'stroke-width': 1.5 }, svg);
-    el('line', { x1: L, x2: L + pw, y1: y(85), y2: y(85), stroke: '#191919', 'stroke-width': 1.2, 'stroke-dasharray': '5 3' }, svg);
-    text(svg, L + 5, y(85) - 4, '85 dB: 8 h limit', { 'font-weight': 700 });
+    el('line', { x1: L, x2: L + pw, y1: y(ref), y2: y(ref), stroke: '#191919', 'stroke-width': 1.2, 'stroke-dasharray': '5 3' }, svg);
+    text(svg, L + 5, y(ref) - 4, ref + ' dB: 8 h limit', { 'font-weight': 700 });
     text(svg, L + pw / 2, H - 5, 'Slider position (dB SPL up the side)', { 'text-anchor': 'middle', class: 'axis-title' });
 
     var group = el('g', { 'clip-path': 'url(#plot-clip)', fill: 'none' }, svg);
@@ -201,9 +216,21 @@
     splSlider.value = isFinite(r.spl) ? Math.min(Math.max(r.spl, 0), top) : 0;
     $('spl-out').textContent = isFinite(r.spl) ? r.spl.toFixed(1) + ' dB' : 'Muted';
     $('spl-max-label').textContent = top.toFixed(1) + ' dB max';
-    Array.prototype.forEach.call(document.querySelectorAll('[data-spl]'), function (b) {
-      b.disabled = b.dataset.spl !== 'max' && parseFloat(b.dataset.spl) > top;
+    var presets = $('level-presets');
+    presets.textContent = '';
+    PRESETS[state.std].concat('max').forEach(function (level) {
+      var value = level === 'max' ? top : level;
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.dataset.spl = level;
+      var secs = SA.safeSeconds(value, state.std);
+      btn.innerHTML = '<b>' + (level === 'max' ? 'Max' : level + ' dB') + '</b><small>' +
+        (level === 'max' ? top.toFixed(1) + ' dB' : fmtShort(secs)) + '</small>';
+      btn.disabled = level !== 'max' && level > top;
+      if (isFinite(r.spl) && Math.abs(r.spl - value) < 0.3) btn.classList.add('is-active');
+      presets.appendChild(btn);
     });
+    setPressed(document.querySelectorAll('[data-std]'), function (b) { return b.dataset.std === state.std; });
     $('slider-out').textContent = Math.round(state.pos * 100) + '%' + (curve.steps ? ' (step ' + Math.round(state.pos * max) + ' of ' + max + ')' : '');
 
     $('range-field').hidden = !curve.hasRange;
@@ -219,13 +246,15 @@
     setPressed(document.querySelectorAll('[data-unit]'), function (b) { return b.dataset.unit === state.unit; });
     setPressed(document.querySelectorAll('[data-srcmode]'), function (b) { return b.dataset.srcmode === state.srcMode; });
 
-    var t = SA.tier(r.spl);
+    var t = SA.tier(r.spl, state.std);
     $('spl').textContent = isFinite(r.spl) ? r.spl.toFixed(1) : '—';
     var chip = $('tier-chip');
     chip.className = 'chip tier-' + t.n;
     chip.textContent = t.n ? 'Tier ' + t.n + ' / 5' : 'Muted';
     $('tier-text').textContent = t.name;
-    $('safe-time').textContent = isFinite(r.spl) ? fmtTime(SA.safeSeconds(r.spl)) : 'Unlimited';
+    $('safe-time').textContent = isFinite(r.spl) ? fmtTime(SA.safeSeconds(r.spl, state.std)) : 'Unlimited';
+    $('spl').style.color = levelColor(r.spl);
+    $('spl-out').style.color = levelColor(r.spl);
     $('att').textContent = isFinite(r.attenuation) ? r.attenuation.toFixed(1) + ' dB' : 'Muted';
     var adj = state.offset + state.preamp;
     $('adj').textContent = (adj > 0 ? '+' : adj < 0 ? '−' : '') + Math.abs(adj).toFixed(1) + ' dB';
@@ -276,6 +305,8 @@
       render();
     } else if (b.dataset.srcmode && b.dataset.srcmode !== state.srcMode) {
       state.srcMode = b.dataset.srcmode; render();
+    } else if (b.dataset.std) {
+      state.std = b.dataset.std; render();
     } else if (b.dataset.spl) {
       setPosFromSpl(b.dataset.spl === 'max' ? calc(1).spl : parseFloat(b.dataset.spl));
       render();

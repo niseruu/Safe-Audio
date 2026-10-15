@@ -32,7 +32,6 @@
           </div>
         </div>
       </section>
-
       <section class="card">
         <h2><i>2</i> Headphone impedance</h2>
         <p class="help">Also on the spec sheet, in ohms (Ω).</p>
@@ -41,8 +40,7 @@
           <span class="unit">Ω</span>
         </div>
       </section>
-
-      <section class="card span-2">
+      <section class="card">
         <h2><i>3</i> Source output at full volume</h2>
         <p class="help">What your phone, computer or amp can deliver at 100% volume, from its spec sheet. Not sure? Try 1 V.</p>
         <div class="row wrap">
@@ -63,38 +61,8 @@
         </div>
         <p class="note" id="derived-v"></p>
       </section>
-
-      <section class="card span-2">
-        <h2><i>4</i> Volume slider type</h2>
-        <p class="help">Pick the system whose slider you use. Each one maps slider position to loudness differently.</p>
-        <div class="filter" id="curve-buttons" role="group" aria-label="Volume slider type"></div>
-        <div class="mt" id="range-field" hidden>
-          <label class="inline">dB range below max <input id="range" type="number" inputmode="decimal" step="1" min="10" max="120" value="60"></label>
-          <p class="note" id="range-help"></p>
-        </div>
-        <p class="note curve-note" id="curve-note"></p>
-      </section>
-
       <section class="card">
-        <h2><i>5</i> Volume position</h2>
-        <p class="help">Move either slider. They stay linked through your slider type, and the level runs up to the loudest your setup reaches. 85 dB is the 8-hour limit.</p>
-        <label for="slider" class="slider-head"><span>Volume</span><output id="slider-out" for="slider">50%</output></label>
-        <input id="slider" type="range" min="0" max="100" step="1" value="50">
-        <label for="spl-slider" class="slider-head second"><span>Level (dB SPL)</span><output id="spl-out" for="spl-slider">96.9 dB</output></label>
-        <input id="spl-slider" type="range" min="0" max="114.9" step="any" value="96.9">
-        <div class="slider-ends" aria-hidden="true"><span>0 dB</span><span id="spl-max-label">max</span></div>
-        <div class="quick" role="group" aria-label="Level presets">
-          <button type="button" data-spl="70">70 dB</button>
-          <button type="button" data-spl="80">80 dB</button>
-          <button type="button" data-spl="85">85 dB</button>
-          <button type="button" data-spl="90">90 dB</button>
-          <button type="button" data-spl="100">100 dB</button>
-          <button type="button" data-spl="max">Max</button>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2><i>6</i> What you play <em>optional</em></h2>
+        <h2><i>4</i> What you play <em>optional</em></h2>
         <p class="help">Music is quieter than a full-scale tone. Using an EQ app? Add its preamp.</p>
         <div class="row two">
           <label class="field">
@@ -113,6 +81,33 @@
         </div>
         <p class="note">Preamp is the gain slider in your EQ app, usually negative (for example −6). A boosted band is still louder by its own boost.</p>
       </section>
+      <section class="card span-2">
+        <h2><i>5</i> Volume slider type</h2>
+        <p class="help">Pick the system whose slider you use. Each one maps slider position to loudness differently.</p>
+        <div class="filter" id="curve-buttons" role="group" aria-label="Volume slider type"></div>
+        <div class="mt" id="range-field" hidden>
+          <label class="inline">dB range below max <input id="range" type="number" inputmode="decimal" step="1" min="10" max="120" value="60"></label>
+          <p class="note" id="range-help"></p>
+        </div>
+        <p class="note curve-note" id="curve-note"></p>
+      </section>
+      <section class="card span-2">
+        <h2><i>6</i> Volume position</h2>
+        <p class="help">Move either slider or pick a level. They stay linked through the slider type you chose.</p>
+        <div class="volume-grid">
+        <div class="vol-sliders">
+          <label for="slider" class="slider-head"><span>Volume</span><output id="slider-out" for="slider">50%</output></label>
+        <input id="slider" type="range" min="0" max="100" step="1" value="50">
+        <label for="spl-slider" class="slider-head second"><span>Level (dB SPL)</span><output id="spl-out" for="spl-slider">96.9 dB</output></label>
+        <input id="spl-slider" type="range" min="0" max="114.9" step="any" value="96.9">
+        <div class="slider-ends" aria-hidden="true"><span>0 dB</span><span id="spl-max-label">max</span></div>
+        </div>
+        <div class="vol-presets">
+          <p class="label">Listening levels and safe time per day</p>
+          <div class="levels" id="level-presets" role="group" aria-label="Listening level presets"></div>
+        </div>
+      </div>
+      </section>
     </form>
 
     <div class="results" aria-live="polite">
@@ -120,6 +115,13 @@
         <p class="label">Estimated level at the ear</p>
         <p class="spl"><b id="spl">—</b><span>dB SPL</span></p>
         <p class="tier"><span id="tier-chip" class="chip tier-1">—</span><span id="tier-text"></span></p>
+        <div class="limit">
+          <span class="label" id="limit-label">Daily limit</span>
+          <div class="toggle" role="group" aria-labelledby="limit-label">
+            <button type="button" data-std="who" class="is-active" aria-pressed="true">WHO · 80 dB</button>
+            <button type="button" data-std="niosh" aria-pressed="false">NIOSH · 85 dB</button>
+          </div>
+        </div>
         <dl class="stats">
           <div><dt>Safe listening time</dt><dd id="safe-time">—</dd></div>
           <div><dt>Slider attenuation</dt><dd id="att">—</dd></div>
@@ -144,7 +146,7 @@
         <li><b>Slider to gain.</b> The slider type turns position into an attenuation in dB. Gain = 10^(dB ÷ 20).</li>
         <li><b>Voltage and power.</b> Volts = max output voltage × gain. Power P = V² ÷ Z.</li>
         <li><b>Level.</b> SPL = sensitivity (dB/mW) + 10·log10(P in mW) + content offset. A dB/V rating is converted first: dB/mW = dB/V − 10·log10(1000 ÷ Z).</li>
-        <li><b>Safe time.</b> NIOSH allows 85 dBA for 8 hours and halves the time every 3 dB above: T = 8 h ÷ 2^((L − 85) ÷ 3).</li>
+        <li><b>Safe time.</b> Both limits halve the daily time for every 3 dB above their reference level: T = 8 h ÷ 2^((L − reference) ÷ 3). WHO / ITU treats 80 dBA for 40 hours a week as 8 hours a day at 80 dB. NIOSH allows 85 dBA for 8 hours. At 70 dB and below there is no time limit (the EPA's level for protecting hearing over a lifetime). WHO is the stricter default.</li>
       </ol>
       <ul>
         <li>It uses spec-sheet figures. It is a model, not a measurement. Only a calibrated meter or ear coupler measures the real level.</li>

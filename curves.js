@@ -117,24 +117,47 @@
     return { attenuation: att, sensMw: sensMw, gain: gain, volts: volts, powerMw: powerMw, spl: spl };
   }
 
-  /* NIOSH: 85 dBA for 8 h, halving every 3 dB. Returns seconds. */
-  function safeSeconds(spl) {
-    return 8 * 3600 / Math.pow(2, (spl - 85) / 3);
+  /*
+   * Daily exposure limits. Both halve the allowed time for every 3 dB above the reference level.
+   *  who:   80 dBA for 8 h a day (the WHO/ITU 40 h a week, spread over five days)
+   *  niosh: 85 dBA for 8 h
+   * At or below UNLIMITED_DB (the EPA lifetime level) there is no time limit.
+   */
+  var STANDARDS = {
+    who: { id: 'who', label: 'WHO / ITU', ref: 80, note: '80 dB for 8 h a day (40 h a week)' },
+    niosh: { id: 'niosh', label: 'NIOSH', ref: 85, note: '85 dB for 8 h a day' }
+  };
+  var UNLIMITED_DB = 70;
+
+  function standardOf(std) { return STANDARDS[std] || STANDARDS.who; }
+
+  /* Safe listening time in seconds per day, or Infinity when there is no limit. */
+  function safeSeconds(spl, std) {
+    if (spl <= UNLIMITED_DB) return Infinity;
+    return 8 * 3600 / Math.pow(2, (spl - standardOf(std).ref) / 3);
   }
 
-  function tier(spl) {
+  function tier(spl, std) {
     if (!isFinite(spl)) return { n: 0, name: 'Muted' };
-    if (spl <= 80) return { n: 1, name: 'Comfortable' };
-    if (spl <= 85) return { n: 2, name: 'At the limit' };
-    if (spl <= 94) return { n: 3, name: 'Caution' };
-    if (spl <= 100) return { n: 4, name: 'High' };
+    var ref = standardOf(std).ref;
+    if (spl <= UNLIMITED_DB) return { n: 1, name: 'Safe all day' };
+    if (spl <= ref) return { n: 2, name: 'Within the daily limit' };
+    if (spl <= ref + 9) return { n: 3, name: 'Caution' };
+    if (spl <= ref + 15) return { n: 4, name: 'High' };
     return { n: 5, name: 'Danger' };
+  }
+
+  /* 0 (safe, green) to 1 (dangerous, red). Green up to UNLIMITED_DB, red at 15 dB over the limit. */
+  function risk(spl, std) {
+    if (!isFinite(spl)) return 0;
+    return clamp((spl - UNLIMITED_DB) / (standardOf(std).ref + 15 - UNLIMITED_DB), 0, 1);
   }
 
   var api = {
     CURVES: CURVES, ORDER: ORDER, ANDROID_HEADSET: ANDROID_HEADSET,
     attenuationDb: attenuationDb, volumeFromDb: volumeFromDb, sensitivityPerMw: sensitivityPerMw,
-    compute: compute, safeSeconds: safeSeconds, tier: tier, clamp: clamp
+    compute: compute, safeSeconds: safeSeconds, tier: tier, risk: risk, standardOf: standardOf,
+    STANDARDS: STANDARDS, UNLIMITED_DB: UNLIMITED_DB, clamp: clamp
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
