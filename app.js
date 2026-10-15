@@ -74,13 +74,15 @@
 
   function currentCurve() { return SA.CURVES[state.curve]; }
   function sliderMax() { return currentCurve().steps || 100; }
-  /* Bottom of the dB slider. At or below it the volume is muted. */
-  function dbFloor() { return currentCurve().hasRange ? -state.range : -80; }
-  function fmtDb(db) { return (db < 0 ? '−' : '') + Math.abs(db).toFixed(1) + ' dB'; }
+  /* The level slider runs from 0 dB SPL up to the level at 100% volume. */
+  function splMax() { return Math.max(calc(1).spl, 1); }
 
-  /* Set the volume from an attenuation, snapping to the device's steps if it has them. */
-  function setPosFromDb(db) {
-    var v = SA.volumeFromDb(state.curve, db, { range: state.range }, dbFloor());
+  /* Set the volume from a target level, snapping to the device's steps if it has them. */
+  function setPosFromSpl(spl) {
+    var top = calc(1).spl;
+    if (spl <= 0) { state.pos = 0; return; }
+    var floor = currentCurve().hasRange ? -state.range : -Infinity;
+    var v = SA.volumeFromDb(state.curve, spl - top, { range: state.range }, floor);
     var steps = currentCurve().steps;
     state.pos = steps ? Math.round(v * steps) / steps : v;
   }
@@ -192,10 +194,16 @@
     var slider = $('slider');
     slider.max = max;
     slider.value = Math.round(state.pos * max);
-    var dbSlider = $('db-slider');
-    dbSlider.min = dbFloor();
-    dbSlider.value = isFinite(r.attenuation) ? Math.max(r.attenuation, dbFloor()) : dbFloor();
-    $('db-out').textContent = isFinite(r.attenuation) ? fmtDb(r.attenuation) : 'Muted';
+    var top = splMax();
+    var splSlider = $('spl-slider');
+    splSlider.min = 0;
+    splSlider.max = top;
+    splSlider.value = isFinite(r.spl) ? Math.min(Math.max(r.spl, 0), top) : 0;
+    $('spl-out').textContent = isFinite(r.spl) ? r.spl.toFixed(1) + ' dB' : 'Muted';
+    $('spl-max-label').textContent = top.toFixed(1) + ' dB max';
+    Array.prototype.forEach.call(document.querySelectorAll('[data-spl]'), function (b) {
+      b.disabled = b.dataset.spl !== 'max' && parseFloat(b.dataset.spl) > top;
+    });
     $('slider-out').textContent = Math.round(state.pos * 100) + '%' + (curve.steps ? ' (step ' + Math.round(state.pos * max) + ' of ' + max + ')' : '');
 
     $('range-field').hidden = !curve.hasRange;
@@ -248,7 +256,7 @@
   bindNumber('preamp', 'preamp', -30, 20);
 
   $('content').addEventListener('change', function (e) { state.offset = parseFloat(e.target.value); render(); });
-  $('db-slider').addEventListener('input', function (e) { setPosFromDb(parseFloat(e.target.value)); render(); });
+  $('spl-slider').addEventListener('input', function (e) { setPosFromSpl(parseFloat(e.target.value)); render(); });
   $('slider').addEventListener('input', function (e) { state.pos = parseFloat(e.target.value) / sliderMax(); render(); });
 
   document.addEventListener('click', function (e) {
@@ -268,8 +276,8 @@
       render();
     } else if (b.dataset.srcmode && b.dataset.srcmode !== state.srcMode) {
       state.srcMode = b.dataset.srcmode; render();
-    } else if (b.dataset.db) {
-      setPosFromDb(parseFloat(b.dataset.db));
+    } else if (b.dataset.spl) {
+      setPosFromSpl(b.dataset.spl === 'max' ? calc(1).spl : parseFloat(b.dataset.spl));
       render();
     }
   });

@@ -184,3 +184,6 @@ input[type="range"]::-moz-range-thumb { width: 1.2rem; height: 1.2rem; border: 2
 .slider-head.second { margin-top: .5rem; }
 .row.two + .note { margin-top: .6rem; }
 .quick button { text-transform: none; letter-spacing: .02em; }
+.slider-ends { display: flex; justify-content: space-between; margin-top: -.2rem; font-size: .66rem; font-weight: 700; color: var(--muted); }
+.quick button:disabled { cursor: not-allowed; opacity: .35; }
+.quick button:disabled:hover { background: transparent; border-color: var(--line); }
