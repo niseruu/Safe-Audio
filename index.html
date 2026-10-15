@@ -77,15 +77,19 @@
 
       <section class="card">
         <h2><i>5</i> Volume position</h2>
-        <label for="slider" class="slider-head"><span>Where you normally listen</span><output id="slider-out" for="slider">50%</output></label>
+        <p class="help">Move either slider. They stay linked through the slider type from step 4.</p>
+        <label for="slider" class="slider-head"><span>Volume</span><output id="slider-out" for="slider">50%</output></label>
         <input id="slider" type="range" min="0" max="100" step="1" value="50">
-        <div class="quick" role="group" aria-label="Volume presets">
-          <button type="button" data-pos="0.3">Low 30%</button>
-          <button type="button" data-pos="0.5">Med 50%</button>
-          <button type="button" data-pos="0.7">Loud 70%</button>
-          <button type="button" data-pos="1">Max 100%</button>
+        <label for="db-slider" class="slider-head second"><span>Attenuation</span><output id="db-out" for="db-slider">−18.1 dB</output></label>
+        <input id="db-slider" type="range" min="-80" max="0" step="0.5" value="-18">
+        <div class="quick" role="group" aria-label="Attenuation presets">
+          <button type="button" data-db="-40">−40 dB</button>
+          <button type="button" data-db="-30">−30 dB</button>
+          <button type="button" data-db="-20">−20 dB</button>
+          <button type="button" data-db="-12">−12 dB</button>
+          <button type="button" data-db="-6">−6 dB</button>
+          <button type="button" data-db="0">0 dB</button>
         </div>
-        <p class="note pos-note" id="pos-note"></p>
       </section>
 
       <section class="card">

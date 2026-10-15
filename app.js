@@ -74,6 +74,16 @@
 
   function currentCurve() { return SA.CURVES[state.curve]; }
   function sliderMax() { return currentCurve().steps || 100; }
+  /* Bottom of the dB slider. At or below it the volume is muted. */
+  function dbFloor() { return currentCurve().hasRange ? -state.range : -80; }
+  function fmtDb(db) { return (db < 0 ? '−' : '') + Math.abs(db).toFixed(1) + ' dB'; }
+
+  /* Set the volume from an attenuation, snapping to the device's steps if it has them. */
+  function setPosFromDb(db) {
+    var v = SA.volumeFromDb(state.curve, db, { range: state.range }, dbFloor());
+    var steps = currentCurve().steps;
+    state.pos = steps ? Math.round(v * steps) / steps : v;
+  }
 
   function calc(pos, curve) {
     return SA.compute({
@@ -182,6 +192,10 @@
     var slider = $('slider');
     slider.max = max;
     slider.value = Math.round(state.pos * max);
+    var dbSlider = $('db-slider');
+    dbSlider.min = dbFloor();
+    dbSlider.value = isFinite(r.attenuation) ? Math.max(r.attenuation, dbFloor()) : dbFloor();
+    $('db-out').textContent = isFinite(r.attenuation) ? fmtDb(r.attenuation) : 'Muted';
     $('slider-out').textContent = Math.round(state.pos * 100) + '%' + (curve.steps ? ' (step ' + Math.round(state.pos * max) + ' of ' + max + ')' : '');
 
     $('range-field').hidden = !curve.hasRange;
@@ -211,7 +225,6 @@
     $('spl-max').textContent = isFinite(full) ? full.toFixed(1) + ' dB' : '—';
     $('volts').textContent = r.volts >= 0.1 ? r.volts.toFixed(2) + ' V' : (r.volts * 1000).toFixed(1) + ' mV';
     $('power').textContent = r.powerMw >= 1 ? r.powerMw.toFixed(1) + ' mW' : r.powerMw.toFixed(3) + ' mW';
-    $('pos-note').textContent = curve.label + ' curve: ' + (isFinite(r.attenuation) ? r.attenuation.toFixed(1) + ' dB' : 'muted') + ' at this position.';
     $('curve-note').textContent = curve.note + (curve.approx ? ' (Approximation.)' : '');
 
     drawChart(calc(1).spl);
@@ -235,6 +248,7 @@
   bindNumber('preamp', 'preamp', -30, 20);
 
   $('content').addEventListener('change', function (e) { state.offset = parseFloat(e.target.value); render(); });
+  $('db-slider').addEventListener('input', function (e) { setPosFromDb(parseFloat(e.target.value)); render(); });
   $('slider').addEventListener('input', function (e) { state.pos = parseFloat(e.target.value) / sliderMax(); render(); });
 
   document.addEventListener('click', function (e) {
@@ -254,10 +268,8 @@
       render();
     } else if (b.dataset.srcmode && b.dataset.srcmode !== state.srcMode) {
       state.srcMode = b.dataset.srcmode; render();
-    } else if (b.dataset.pos) {
-      var c = currentCurve();
-      var p = parseFloat(b.dataset.pos);
-      state.pos = c.steps ? Math.round(p * c.steps) / c.steps : p;
+    } else if (b.dataset.db) {
+      setPosFromDb(parseFloat(b.dataset.db));
       render();
     }
   });

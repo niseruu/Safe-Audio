@@ -181,5 +181,6 @@ input[type="range"]::-moz-range-thumb { width: 1.2rem; height: 1.2rem; border: 2
 .row.two { align-items: start; gap: .8rem; }
 .row.two > .field { flex: 1 1 0; min-width: 0; margin-bottom: 0; }
 .row.grow input { max-width: 14rem; }
-.pos-note { margin-top: .7rem; }
+.slider-head.second { margin-top: .5rem; }
 .row.two + .note { margin-top: .6rem; }
+.quick button { text-transform: none; letter-spacing: .02em; }

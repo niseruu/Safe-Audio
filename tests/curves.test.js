@@ -80,3 +80,25 @@ test('offset (content plus EQ preamp) shifts the level by the same number of dB'
   near(SA.compute({ ...base, offset: -6 }).spl, a - 6, 1e-9);
   near(SA.compute({ ...base, offset: -12 + 3 }).spl, a - 9, 1e-9);
 });
+
+test('volumeFromDb is the inverse of attenuationDb on every curve', () => {
+  const opts = { range: 60 };
+  for (const id of SA.ORDER) {
+    for (let i = 5; i <= 100; i += 5) {
+      const v = i / 100;
+      const db = SA.attenuationDb(id, v, opts);
+      if (db < -80) continue;
+      near(SA.volumeFromDb(id, db, opts), v, 1e-6);
+    }
+  }
+});
+
+test('volumeFromDb: 0 dB is max, the floor is mute, and values clamp to 0..1', () => {
+  assert.strictEqual(SA.volumeFromDb('linux', 0, {}, -80), 1);
+  assert.strictEqual(SA.volumeFromDb('linux', 3, {}, -80), 1);
+  assert.strictEqual(SA.volumeFromDb('linux', -80, {}, -80), 0);
+  assert.strictEqual(SA.volumeFromDb('generic', -60, { range: 60 }, -60), 0);
+  near(SA.volumeFromDb('generic', -30, { range: 60 }, -60), 0.5, 1e-9);
+  const lo = SA.volumeFromDb('android', -70, {}, -80);
+  assert.ok(lo >= 0 && lo <= 0.011, String(lo));
+});

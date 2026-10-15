@@ -27,21 +27,28 @@
     linear: {
       id: 'linear', label: 'Linear', where: 'Naive model', steps: null, approx: false,
       db: function (v) { return v <= 0 ? -Infinity : 20 * Math.log10(v); },
+      vol: function (db) { return Math.pow(10, db / 20); },
       note: 'Output voltage is simply slider × max voltage. This is what a naive calculator assumes. No mainstream operating system uses it, and it makes the slider look far louder at the bottom than it really is.'
     },
     linux: {
       id: 'linux', label: 'Linux', where: 'PulseAudio / PipeWire', steps: null, approx: false,
       db: function (v) { return v <= 0 ? -Infinity : 60 * Math.log10(v); },
+      vol: function (db) { return Math.pow(10, db / 60); },
       note: 'PulseAudio and PipeWire map the slider percentage to amplitude with a cubic curve (amplitude = percent³), which is 60·log10(percent) dB. 50% is −18 dB. Raw ALSA mixers can instead expose the hardware dB scale directly.'
     },
     windows: {
       id: 'windows', label: 'Windows', where: 'Master volume scalar', steps: null, approx: true,
       db: function (v) { return v <= 0 ? -Infinity : 40 * Math.log10(v); },
+      vol: function (db) { return Math.pow(10, db / 40); },
       note: 'Windows exposes an audio-taper scalar that is not linear in amplitude. Microsoft does not publish the exact curve and it varies with the driver, so this uses amplitude = scalar², which is 40·log10(scalar) dB. 50% is −12 dB. Treat it as an approximation.'
     },
     android: {
       id: 'android', label: 'Android', where: 'AOSP headset curve', steps: 15, approx: true,
       db: function (v) { return v <= 0 ? -Infinity : interpolate(ANDROID_HEADSET, v * 100); },
+      vol: function (db) {
+        var swapped = ANDROID_HEADSET.map(function (pt) { return [pt[1], pt[0]]; });
+        return interpolate(swapped, db) / 100;
+      },
       note: 'Android music volume has 15 steps, and the framework maps each step to a gain with a table of control points. This uses the AOSP default headset curve (1% → −49.5 dB, 33% → −33.5 dB, 66% → −17 dB, 100% → 0 dB). Manufacturers often change the table, so real devices differ.'
     },
     apple: {
@@ -50,6 +57,7 @@
         if (v <= 0) return -Infinity;
         return 20 * Math.log10((Math.pow(10, 3 * v) - 1) / 999);
       },
+      vol: function (db) { return Math.log10(999 * Math.pow(10, db / 20) + 1) / 3; },
       note: 'iOS and macOS use 16 volume steps with an exponential taper. Apple does not publish the gain table, so this is an approximation: amplitude = (10^(3·v) − 1) ÷ 999, giving about −30 dB at step 8 of 16.'
     },
     alsa: {
@@ -58,6 +66,7 @@
         var range = opts && opts.range > 0 ? opts.range : 60;
         return v <= 0 ? -Infinity : -range * (1 - v);
       },
+      vol: function (db, opts) { return 1 + db / (opts && opts.range > 0 ? opts.range : 60); },
       note: 'ALSA exposes each driver\'s own hardware dB scale, and the slider is linear in dB between the control\'s minimum and 0 dB. The range depends on the codec or DAC.'
     },
     generic: {
@@ -66,6 +75,7 @@
         var range = opts && opts.range > 0 ? opts.range : 60;
         return v <= 0 ? -Infinity : -range * (1 - v);
       },
+      vol: function (db, opts) { return 1 + db / (opts && opts.range > 0 ? opts.range : 60); },
       note: 'For anything else, such as a hardware knob or a player with its own volume scale: the slider is linear in decibels, 100% is 0 dB and 0% is the range below it. Enter the range that matches your device.'
     }
   };
@@ -74,6 +84,16 @@
 
   function attenuationDb(curveId, v, opts) {
     return CURVES[curveId].db(clamp(v, 0, 1), opts);
+  }
+
+  /*
+   * Inverse of attenuationDb: the slider position (0 to 1) that gives `db`.
+   * `floorDb` is the bottom of the dB slider; anything at or below it is mute.
+   */
+  function volumeFromDb(curveId, db, opts, floorDb) {
+    if (db >= 0) return 1;
+    if (floorDb !== undefined && db <= floorDb) return 0;
+    return clamp(CURVES[curveId].vol(db, opts), 0, 1);
   }
 
   /* Convert a sensitivity figure to dB SPL per mW. */
@@ -113,7 +133,7 @@
 
   var api = {
     CURVES: CURVES, ORDER: ORDER, ANDROID_HEADSET: ANDROID_HEADSET,
-    attenuationDb: attenuationDb, sensitivityPerMw: sensitivityPerMw,
+    attenuationDb: attenuationDb, volumeFromDb: volumeFromDb, sensitivityPerMw: sensitivityPerMw,
     compute: compute, safeSeconds: safeSeconds, tier: tier, clamp: clamp
   };
 
