@@ -32,7 +32,8 @@ test('apple approximation hits 0 dB at max and about -30 dB at half', () => {
   near(SA.attenuationDb('apple', 0.5), -30.2, 0.3);
 });
 
-test('generic dB range', () => {
+test('alsa and generic are linear in dB over their range', () => {
+  near(SA.attenuationDb('alsa', 0.5, { range: 50 }), -25);
   near(SA.attenuationDb('generic', 0.5, { range: 60 }), -30);
   near(SA.attenuationDb('generic', 0.5, { range: 40 }), -20);
 });

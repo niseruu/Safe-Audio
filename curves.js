@@ -52,17 +52,25 @@
       },
       note: 'iOS and macOS use 16 volume steps with an exponential taper. Apple does not publish the gain table, so this is an approximation: amplitude = (10^(3·v) − 1) ÷ 999, giving about −30 dB at step 8 of 16.'
     },
-    generic: {
-      id: 'generic', label: 'Generic dB', where: 'Straight dB scale', steps: null, approx: false, hasRange: true,
+    alsa: {
+      id: 'alsa', label: 'Linux driver', where: 'ALSA, driver specific', steps: null, approx: false, hasRange: true,
       db: function (v, opts) {
         var range = opts && opts.range > 0 ? opts.range : 60;
         return v <= 0 ? -Infinity : -range * (1 - v);
       },
-      note: 'The slider is linear in decibels: 100% is 0 dB and 0% is the range below it. Hardware volume knobs and many pro-audio interfaces behave like this. Set the range to match your device.'
+      note: 'ALSA exposes each driver\'s own hardware dB scale, and the slider is linear in dB between the control\'s minimum and 0 dB. The range depends on the codec or DAC. Run "amixer -c 0 contents" and read dBscale-min for your playback control, then enter that number as the dB range.'
+    },
+    generic: {
+      id: 'generic', label: 'Custom dB', where: 'Any other device', steps: null, approx: false, hasRange: true,
+      db: function (v, opts) {
+        var range = opts && opts.range > 0 ? opts.range : 60;
+        return v <= 0 ? -Infinity : -range * (1 - v);
+      },
+      note: 'For anything else, such as a hardware knob or a player with its own volume scale: the slider is linear in decibels, 100% is 0 dB and 0% is the range below it. Enter the range that matches your device.'
     }
   };
 
-  var ORDER = ['linear', 'linux', 'windows', 'android', 'apple', 'generic'];
+  var ORDER = ['linear', 'windows', 'android', 'apple', 'linux', 'alsa', 'generic'];
 
   function attenuationDb(curveId, v, opts) {
     return CURVES[curveId].db(clamp(v, 0, 1), opts);

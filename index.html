@@ -47,16 +47,14 @@
         <header class="section-heading">
           <p class="eyebrow"><span class="chip">[01]</span> Calculator <span class="rule"></span></p>
           <h2>Your level</h2>
+          <p class="description">Work through the six steps. The result updates as you go.</p>
         </header>
 
         <div class="calc">
           <form class="panel inputs" id="form" autocomplete="off" onsubmit="return false">
             <fieldset>
-              <legend>Headphone</legend>
-              <label class="field">
-                <span>Preset</span>
-                <select id="hp-preset"></select>
-              </label>
+              <legend><span class="step-chip">Step 1</span> Headphone sensitivity</legend>
+              <p class="help">Find this on the headphone's spec sheet or box. It is written as <b>dB/mW</b> (dB SPL per milliwatt) or <b>dB/V</b> (dB SPL per volt). Pick the unit your spec sheet uses.</p>
               <div class="row">
                 <label class="field">
                   <span>Sensitivity</span>
@@ -70,6 +68,11 @@
                   </div>
                 </div>
               </div>
+            </fieldset>
+
+            <fieldset>
+              <legend><span class="step-chip">Step 2</span> Headphone impedance</legend>
+              <p class="help">Also on the spec sheet, in ohms (Ω). Typical values run from 16 Ω to 300 Ω.</p>
               <label class="field">
                 <span>Impedance (Ω)</span>
                 <input id="imp" type="number" inputmode="decimal" step="1" min="1" max="2000" value="32">
@@ -77,27 +80,46 @@
             </fieldset>
 
             <fieldset>
-              <legend>Source</legend>
-              <label class="field">
-                <span>Preset</span>
-                <select id="src-preset"></select>
-              </label>
-              <label class="field">
-                <span>Max output at 100% volume (V RMS)</span>
+              <legend><span class="step-chip">Step 3</span> Source output at full volume</legend>
+              <p class="help">How much signal your phone, computer or amp can deliver at 100% volume. Spec sheets give it either as <b>volts RMS</b>, or as <b>power in mW into a load</b> such as "30 mW into 32 Ω". Pick whichever form you have. If you can't find it, 1 V is a reasonable starting guess for a phone or laptop.</p>
+              <div class="field">
+                <span id="src-label">Spec sheet gives</span>
+                <div class="toggle" role="group" aria-labelledby="src-label">
+                  <button type="button" data-srcmode="v" class="is-active" aria-pressed="true">Volts RMS</button>
+                  <button type="button" data-srcmode="mw" aria-pressed="false">mW into a load</button>
+                </div>
+              </div>
+              <label class="field" id="vout-field">
+                <span>Max output (V RMS)</span>
                 <input id="vmax" type="number" inputmode="decimal" step="0.05" min="0.05" max="20" value="1">
               </label>
+              <div class="row" id="pout-field" hidden>
+                <label class="field">
+                  <span>Max power (mW)</span>
+                  <input id="pmw" type="number" inputmode="decimal" step="1" min="0.1" max="5000" value="30">
+                </label>
+                <label class="field">
+                  <span>Into load (Ω)</span>
+                  <input id="load" type="number" inputmode="decimal" step="1" min="1" max="2000" value="32">
+                </label>
+              </div>
+              <p class="derived" id="derived-v"></p>
             </fieldset>
 
             <fieldset>
-              <legend>Volume</legend>
-              <div class="field">
-                <span id="curve-label">Slider curve</span>
-                <div class="filter" id="curve-buttons" role="group" aria-labelledby="curve-label"></div>
-              </div>
+              <legend><span class="step-chip">Step 4</span> Volume slider type</legend>
+              <p class="help">Choose the device or system whose volume slider you use. Each one turns slider position into loudness differently. <b>Linear</b> is the naive straight-line model, included for comparison.</p>
+              <div class="filter" id="curve-buttons" role="group" aria-label="Volume slider type"></div>
               <label class="field" id="range-field" hidden>
                 <span>dB range below max</span>
                 <input id="range" type="number" inputmode="decimal" step="1" min="10" max="120" value="60">
               </label>
+              <p class="help range-help" id="range-help" hidden></p>
+            </fieldset>
+
+            <fieldset>
+              <legend><span class="step-chip">Step 5</span> Volume position</legend>
+              <p class="help">Set the slider to where you normally listen. The presets are shortcuts.</p>
               <div class="field">
                 <label for="slider" class="slider-head">
                   <span>Volume position</span>
@@ -111,8 +133,13 @@
                   <button type="button" data-pos="1">Max 100%</button>
                 </div>
               </div>
+            </fieldset>
+
+            <fieldset>
+              <legend><span class="step-chip">Step 6</span> What you play <em>optional</em></legend>
+              <p class="help">The calculator assumes a full-scale tone, which is the loudest possible signal. Music is quieter on average, so choose a lower option for a more realistic figure.</p>
               <label class="field">
-                <span>What are you playing?</span>
+                <span>Content</span>
                 <select id="content">
                   <option value="0">Full-scale tone (worst case)</option>
                   <option value="-8">Loud modern master (about −8 dB)</option>

@@ -5,37 +5,17 @@
   var $ = function (id) { return document.getElementById(id); };
   var NS = 'http://www.w3.org/2000/svg';
 
-  /* Illustrative archetypes, not specific products. Check your own spec sheet. */
-  var HEADPHONES = [
-    { id: 'custom', label: 'Custom' },
-    { id: 'iem', label: 'Typical IEM (110 dB/mW, 16 Ω)', s: 110, u: 'mw', z: 16 },
-    { id: 'closed', label: 'Typical closed-back (100 dB/mW, 32 Ω)', s: 100, u: 'mw', z: 32 },
-    { id: 'planar', label: 'Typical planar (92 dB/mW, 50 Ω)', s: 92, u: 'mw', z: 50 },
-    { id: 'hiz', label: 'High-impedance dynamic (96 dB/mW, 250 Ω)', s: 96, u: 'mw', z: 250 }
-  ];
-  var SOURCES = [
-    { id: 'custom', label: 'Custom' },
-    { id: 'phone', label: 'Phone headphone output (about 0.5 V)', v: 0.5 },
-    { id: 'dongle', label: 'USB-C dongle (about 1 V)', v: 1 },
-    { id: 'laptop', label: 'Laptop headphone jack (about 1.5 V)', v: 1.5 },
-    { id: 'amp', label: 'Desktop DAC/amp (about 2 V)', v: 2 },
-    { id: 'power', label: 'Powerful headphone amp (about 4 V)', v: 4 }
-  ];
-
   var state = {
-    sens: 100, unit: 'mw', z: 32, vmax: 1, curve: 'linux',
-    pos: 0.5, range: 60, offset: 0, hp: 'closed', src: 'dongle'
+    sens: 100, unit: 'mw', z: 32, srcMode: 'v', vout: 1, pmw: 30, load: 32,
+    curve: 'linux', pos: 0.5, range: 60, offset: 0
   };
 
-  /* ---------- Setup ---------- */
-  function fillSelect(el, list) {
-    list.forEach(function (o) {
-      var opt = document.createElement('option');
-      opt.value = o.id; opt.textContent = o.label; el.appendChild(opt);
-    });
+  /* Max RMS voltage at 100% volume, from whichever form the spec sheet used. */
+  function getVmax() {
+    return state.srcMode === 'v' ? state.vout : Math.sqrt((state.pmw / 1000) * state.load);
   }
-  fillSelect($('hp-preset'), HEADPHONES);
-  fillSelect($('src-preset'), SOURCES);
+
+  /* ---------- Setup ---------- */
 
   var curveBox = $('curve-buttons');
   SA.ORDER.forEach(function (id) {
@@ -59,16 +39,18 @@
     if ((s = num('s', 40, 140)) !== null) state.sens = s;
     if (p.get('u') === 'v' || p.get('u') === 'mw') state.unit = p.get('u');
     if ((s = num('z', 1, 2000)) !== null) state.z = s;
-    if ((s = num('vm', 0.05, 20)) !== null) state.vmax = s;
+    if ((s = num('vm', 0.05, 20)) !== null) state.vout = s;
+    if (p.get('sm') === 'mw' || p.get('sm') === 'v') state.srcMode = p.get('sm');
+    if ((s = num('pm', 0.1, 5000)) !== null) state.pmw = s;
+    if ((s = num('ld', 1, 2000)) !== null) state.load = s;
     if (SA.CURVES[p.get('c')]) state.curve = p.get('c');
     if ((s = num('p', 0, 1)) !== null) state.pos = s;
     if ((s = num('r', 10, 120)) !== null) state.range = s;
     if ((s = num('o', -30, 0)) !== null) state.offset = s;
-    state.hp = 'custom'; state.src = 'custom';
   }
   function writeHash() {
     var p = new URLSearchParams({
-      s: state.sens, u: state.unit, z: state.z, vm: state.vmax, c: state.curve,
+      s: state.sens, u: state.unit, z: state.z, vm: state.vout, sm: state.srcMode, pm: state.pmw, ld: state.load, c: state.curve,
       p: state.pos.toFixed(3), r: state.range, o: state.offset
     });
     try { history.replaceState(null, '', '#' + p.toString()); } catch (e) { /* ignore */ }
@@ -125,7 +107,7 @@
 
   function calc(pos, curve) {
     return SA.compute({
-      sens: state.sens, unit: state.unit, z: state.z, vmax: state.vmax,
+      sens: state.sens, unit: state.unit, z: state.z, vmax: getVmax(),
       curve: curve || state.curve, v: pos, range: state.range, offset: state.offset
     });
   }
@@ -144,13 +126,13 @@
   }
 
   /* ---------- Chart: level vs slider, one line per curve ---------- */
-  var CURVE_DASH = { linear: '2 5', linux: '', windows: '8 4', android: '', apple: '3 3', generic: '10 3 2 3' };
-  var CURVE_GREY = { linear: '#9a9a96', linux: '#444541', windows: '#6f706d', android: '#444541', apple: '#6f706d', generic: '#9a9a96' };
+  var CURVE_DASH = { linear: '2 5', linux: '', alsa: '6 2 2 2', windows: '8 4', android: '', apple: '3 3', generic: '10 3 2 3' };
+  var CURVE_GREY = { linear: '#9a9a96', linux: '#444541', alsa: '#6f706d', windows: '#6f706d', android: '#444541', apple: '#6f706d', generic: '#9a9a96' };
 
   function drawCurveChart(spl100) {
     var svg = $('curve-chart');
     svg.textContent = '';
-    var W = 760, H = 380, L = 54, R = 96, T = 16, B = 44;
+    var W = 760, H = 380, L = 54, R = 116, T = 16, B = 44;
     var pw = W - L - R, ph = H - T - B;
 
     var yMax = Math.ceil((spl100 + 3) / 10) * 10;
@@ -299,6 +281,21 @@
     $('slider-out').textContent = Math.round(state.pos * 100) + '%' + (curve.steps ? ' (step ' + Math.round(state.pos * max) + ' of ' + max + ')' : '');
 
     $('range-field').hidden = !curve.hasRange;
+    var rh = $('range-help');
+    rh.hidden = !curve.hasRange;
+    rh.textContent = state.curve === 'alsa'
+      ? 'Run "amixer -c 0 contents" in a terminal, find your playback control and read dBscale-min. Enter that value without the minus sign.'
+      : 'Check your device manual for its volume range in dB. 60 is a common value.';
+    var voltsMax = getVmax();
+    $('vout-field').hidden = state.srcMode !== 'v';
+    $('pout-field').hidden = state.srcMode !== 'mw';
+    $('derived-v').textContent = state.srcMode === 'mw'
+      ? 'That works out to ' + voltsMax.toFixed(2) + ' V RMS at full volume (V = √(P × load)).'
+      : '';
+    Array.prototype.forEach.call(document.querySelectorAll('[data-srcmode]'), function (b) {
+      var on = b.dataset.srcmode === state.srcMode;
+      b.classList.toggle('is-active', on); b.setAttribute('aria-pressed', on);
+    });
     Array.prototype.forEach.call(curveBox.children, function (b) {
       var on = b.dataset.curve === state.curve;
       b.classList.toggle('is-active', on);
@@ -350,26 +347,20 @@
     return isFinite(v) ? Math.min(hi, Math.max(lo, v)) : fallback;
   }
 
-  $('hp-preset').addEventListener('change', function (e) {
-    var p = HEADPHONES.filter(function (h) { return h.id === e.target.value; })[0];
-    state.hp = p.id;
-    if (p.s) { state.sens = p.s; state.unit = p.u; state.z = p.z; $('sens').value = p.s; $('imp').value = p.z; }
-    render();
-  });
-  $('src-preset').addEventListener('change', function (e) {
-    var p = SOURCES.filter(function (s) { return s.id === e.target.value; })[0];
-    state.src = p.id;
-    if (p.v) { state.vmax = p.v; $('vmax').value = p.v; }
-    render();
-  });
   $('sens').addEventListener('input', function (e) {
-    state.sens = readNumber(e.target, 40, 140, state.sens); $('hp-preset').value = 'custom'; render();
+    state.sens = readNumber(e.target, 40, 140, state.sens); render();
   });
   $('imp').addEventListener('input', function (e) {
-    state.z = readNumber(e.target, 1, 2000, state.z); $('hp-preset').value = 'custom'; render();
+    state.z = readNumber(e.target, 1, 2000, state.z); render();
   });
   $('vmax').addEventListener('input', function (e) {
-    state.vmax = readNumber(e.target, 0.05, 20, state.vmax); $('src-preset').value = 'custom'; render();
+    state.vout = readNumber(e.target, 0.05, 20, state.vout); render();
+  });
+  $('pmw').addEventListener('input', function (e) {
+    state.pmw = readNumber(e.target, 0.1, 5000, state.pmw); render();
+  });
+  $('load').addEventListener('input', function (e) {
+    state.load = readNumber(e.target, 1, 2000, state.load); render();
   });
   $('range').addEventListener('input', function (e) {
     state.range = readNumber(e.target, 10, 120, state.range); render();
@@ -397,6 +388,8 @@
       state.sens = Math.round(state.sens * 10) / 10;
       $('sens').value = state.sens;
       render();
+    } else if (b.dataset.srcmode && b.dataset.srcmode !== state.srcMode) {
+      state.srcMode = b.dataset.srcmode; render();
     } else if (b.dataset.pos) {
       var c = currentCurve();
       state.pos = c.steps ? Math.round(parseFloat(b.dataset.pos) * c.steps) / c.steps : parseFloat(b.dataset.pos);
@@ -430,21 +423,11 @@
 
   /* ---------- Init ---------- */
   readHash();
-  var hpMatch = HEADPHONES.filter(function (h) { return h.s === state.sens && h.u === state.unit && h.z === state.z; })[0];
-  var srcMatch = SOURCES.filter(function (s) { return s.v === state.vmax; })[0];
-  if (!location.hash) {
-    // first visit defaults: closed-back headphone from a dongle
-    var d = HEADPHONES.filter(function (h) { return h.id === 'closed'; })[0];
-    state.sens = d.s; state.unit = d.u; state.z = d.z; state.vmax = 1; state.hp = 'closed'; state.src = 'dongle';
-  } else {
-    state.hp = hpMatch ? hpMatch.id : 'custom';
-    state.src = srcMatch ? srcMatch.id : 'custom';
-  }
-  $('hp-preset').value = state.hp;
-  $('src-preset').value = state.src;
   $('sens').value = state.sens;
   $('imp').value = state.z;
-  $('vmax').value = state.vmax;
+  $('vmax').value = state.vout;
+  $('pmw').value = state.pmw;
+  $('load').value = state.load;
   $('range').value = state.range;
   $('content').value = String(state.offset);
   if ($('content').value !== String(state.offset)) { $('content').value = '0'; state.offset = 0; }

@@ -259,3 +259,13 @@ td:last-child, th:last-child { text-align: right; }
   .marquee-track { animation: none; }
   .bar i { transition: none; }
 }
+
+/* Step-by-step form */
+.step-chip { display: inline-grid; height: 1.4rem; place-items: center; margin-right: .5rem; padding-inline: .6rem; background: var(--signal); letter-spacing: .08em; }
+legend { display: flex; align-items: center; }
+legend em { margin-left: auto; font-style: normal; color: var(--muted); letter-spacing: .08em; }
+.help { margin-bottom: 1rem; color: #444541; font-size: .92rem; line-height: 1.5; }
+.range-help { margin-top: -.3rem; }
+.derived { margin: -.2rem 0 0; font-size: .8rem; color: var(--muted); }
+
+#range-field { margin-top: 1rem; }
