@@ -15,8 +15,6 @@
     return state.srcMode === 'v' ? state.vout : Math.sqrt((state.pmw / 1000) * state.load);
   }
 
-  /* ---------- Setup ---------- */
-
   var curveBox = $('curve-buttons');
   SA.ORDER.forEach(function (id) {
     var c = SA.CURVES[id];
@@ -26,7 +24,7 @@
     curveBox.appendChild(b);
   });
 
-  /* ---------- Persistence of setup in the URL hash ---------- */
+  /* ---------- Setup stored in the URL hash, so a copied link restores it ---------- */
   function readHash() {
     var h = location.hash.replace(/^#/, '');
     if (h.indexOf('=') === -1) return;
@@ -50,8 +48,8 @@
   }
   function writeHash() {
     var p = new URLSearchParams({
-      s: state.sens, u: state.unit, z: state.z, vm: state.vout, sm: state.srcMode, pm: state.pmw, ld: state.load, c: state.curve,
-      p: state.pos.toFixed(3), r: state.range, o: state.offset
+      s: state.sens, u: state.unit, z: state.z, vm: state.vout, sm: state.srcMode, pm: state.pmw, ld: state.load,
+      c: state.curve, p: state.pos.toFixed(3), r: state.range, o: state.offset
     });
     try { history.replaceState(null, '', '#' + p.toString()); } catch (e) { /* ignore */ }
   }
@@ -59,49 +57,20 @@
   /* ---------- Formatting ---------- */
   function fmtTime(sec) {
     if (!isFinite(sec)) return '—';
-    if (sec > 86400) return 'More than 24 h';
+    if (sec > 86400) return 'Over 24 h';
     if (sec < 10) return sec.toFixed(1) + ' s';
     if (sec < 60) return Math.round(sec) + ' s';
     if (sec < 3600) {
       var m = Math.floor(sec / 60), s = Math.round(sec % 60);
+      if (s === 60) { m += 1; s = 0; }
       return m + ' min' + (s ? ' ' + s + ' s' : '');
     }
     var h = Math.floor(sec / 3600), mm = Math.round((sec % 3600) / 60);
     if (mm === 60) { h += 1; mm = 0; }
     return h + ' h' + (mm ? ' ' + mm + ' min' : '');
   }
-  function fmtShort(sec) {
-    if (sec >= 3600) return (sec / 3600) + ' h';
-    if (sec >= 60) return (sec / 60) + ' min';
-    return sec + ' s';
-  }
   var fmt1 = function (x) { return isFinite(x) ? x.toFixed(1) : '—'; };
 
-  /* ---------- Listening log ---------- */
-  var LOG_KEY = 'safe-audio:log';
-  function today() {
-    var d = new Date();
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-  }
-  function loadLog() {
-    try {
-      var raw = JSON.parse(localStorage.getItem(LOG_KEY));
-      if (raw && raw.date === today() && Array.isArray(raw.entries)) return raw;
-    } catch (e) { /* ignore */ }
-    return { date: today(), entries: [] };
-  }
-  function saveLog(log) {
-    try { localStorage.setItem(LOG_KEY, JSON.stringify(log)); } catch (e) { /* ignore */ }
-  }
-  var log = loadLog();
-
-  function dosePct() {
-    var total = 0;
-    log.entries.forEach(function (e) { total += (e.min * 60) / SA.safeSeconds(e.spl); });
-    return total * 100;
-  }
-
-  /* ---------- Calculation ---------- */
   function currentCurve() { return SA.CURVES[state.curve]; }
   function sliderMax() { return currentCurve().steps || 100; }
 
@@ -112,7 +81,7 @@
     });
   }
 
-  /* ---------- SVG helpers ---------- */
+  /* ---------- Chart: level vs slider position, one line per curve ---------- */
   function el(name, attrs, parent) {
     var n = document.createElementNS(NS, name);
     Object.keys(attrs || {}).forEach(function (k) { n.setAttribute(k, attrs[k]); });
@@ -125,16 +94,14 @@
     return t;
   }
 
-  /* ---------- Chart: level vs slider, one line per curve ---------- */
-  var CURVE_DASH = { linear: '2 5', linux: '', alsa: '6 2 2 2', windows: '8 4', android: '', apple: '3 3', generic: '10 3 2 3' };
-  var CURVE_GREY = { linear: '#9a9a96', linux: '#444541', alsa: '#6f706d', windows: '#6f706d', android: '#444541', apple: '#6f706d', generic: '#9a9a96' };
+  var CURVE_DASH = { linear: '2 4', windows: '7 3', android: '', apple: '3 3', linux: '', alsa: '5 2 2 2', generic: '9 3 2 3' };
+  var CURVE_GREY = { linear: '#9a9a96', windows: '#6f706d', android: '#444541', apple: '#6f706d', linux: '#444541', alsa: '#6f706d', generic: '#9a9a96' };
 
-  function drawCurveChart(spl100) {
+  function drawChart(spl100) {
     var svg = $('curve-chart');
     svg.textContent = '';
-    var W = 760, H = 380, L = 54, R = 116, T = 16, B = 44;
+    var W = 520, H = 270, L = 38, R = 106, T = 8, B = 34;
     var pw = W - L - R, ph = H - T - B;
-
     var yMax = Math.ceil((spl100 + 3) / 10) * 10;
     var yMin = Math.max(0, yMax - 90);
     var x = function (v) { return L + v * pw; };
@@ -143,137 +110,73 @@
     var clip = el('clipPath', { id: 'plot-clip' }, svg);
     el('rect', { x: L, y: T, width: pw, height: ph }, clip);
 
-    // danger zone above 100 dB, caution 85-100
-    if (yMax > 100) el('rect', { x: L, y: y(yMax), width: pw, height: y(100) - y(yMax), fill: '#d6342b', opacity: .1 }, svg);
-    if (yMax > 85) el('rect', { x: L, y: y(Math.min(100, yMax)), width: pw, height: y(85) - y(Math.min(100, yMax)), fill: '#fffa00', opacity: .45 }, svg);
+    if (yMax > 100) el('rect', { x: L, y: y(yMax), width: pw, height: y(100) - y(yMax), fill: '#d6342b', opacity: .12 }, svg);
+    if (yMax > 85) el('rect', { x: L, y: y(Math.min(100, yMax)), width: pw, height: y(85) - y(Math.min(100, yMax)), fill: '#fffa00', opacity: .6 }, svg);
 
     for (var g = Math.ceil(yMin / 10) * 10; g <= yMax; g += 10) {
       el('line', { x1: L, x2: L + pw, y1: y(g), y2: y(g), class: 'grid' }, svg);
-      text(svg, L - 8, y(g) + 4, g, { 'text-anchor': 'end', class: 'tick' });
+      text(svg, L - 5, y(g) + 3, g, { 'text-anchor': 'end', class: 'tick' });
     }
     for (var q = 0; q <= 100; q += 25) {
       el('line', { x1: x(q / 100), x2: x(q / 100), y1: T, y2: T + ph, class: 'grid' }, svg);
-      text(svg, x(q / 100), T + ph + 18, q + '%', { 'text-anchor': 'middle', class: 'tick' });
+      text(svg, x(q / 100), T + ph + 15, q + '%', { 'text-anchor': 'middle', class: 'tick' });
     }
-    el('rect', { x: L, y: T, width: pw, height: ph, fill: 'none', stroke: '#191919' }, svg);
-    el('line', { x1: L, x2: L + pw, y1: y(85), y2: y(85), stroke: '#191919', 'stroke-width': 1.5, 'stroke-dasharray': '6 3' }, svg);
-    text(svg, L + 6, y(85) - 5, '85 dB for 8 h', { 'font-weight': 700 });
-
-    text(svg, L + pw / 2, H - 6, 'Slider position', { 'text-anchor': 'middle', class: 'axis-title' });
-    var yt = text(svg, 14, T + ph / 2, 'dB SPL', { 'text-anchor': 'middle', class: 'axis-title', transform: 'rotate(-90 14 ' + (T + ph / 2) + ')' });
-    void yt;
+    el('rect', { x: L, y: T, width: pw, height: ph, fill: 'none', stroke: '#191919', 'stroke-width': 1.5 }, svg);
+    el('line', { x1: L, x2: L + pw, y1: y(85), y2: y(85), stroke: '#191919', 'stroke-width': 1.2, 'stroke-dasharray': '5 3' }, svg);
+    text(svg, L + 5, y(85) - 4, '85 dB: 8 h limit', { 'font-weight': 700 });
+    text(svg, L + pw / 2, H - 5, 'Slider position (dB SPL up the side)', { 'text-anchor': 'middle', class: 'axis-title' });
 
     var group = el('g', { 'clip-path': 'url(#plot-clip)', fill: 'none' }, svg);
-    var labels = [];
-    SA.ORDER.forEach(function (id) {
-      if (id === state.curve) return;
-      var curve = SA.CURVES[id];
+    var line = function (id, bold) {
       var pts = [];
-      for (var i = 1; i <= 200; i++) {
-        var v = i / 200;
-        pts.push(x(v).toFixed(1) + ',' + y(calc(v, id).spl).toFixed(1));
-      }
-      el('polyline', { points: pts.join(' '), stroke: CURVE_GREY[id], 'stroke-width': 1.6, 'stroke-dasharray': CURVE_DASH[id] }, group);
-      labels.push({ id: id, y: y(calc(0.999, id).spl) });
-    });
-    // selected curve on top, with quantised steps drawn as dots
+      for (var i = 1; i <= 160; i++) pts.push(x(i / 160).toFixed(1) + ',' + y(calc(i / 160, id).spl).toFixed(1));
+      el('polyline', {
+        points: pts.join(' '), stroke: bold ? '#191919' : CURVE_GREY[id],
+        'stroke-width': bold ? 3.5 : 1.4, 'stroke-dasharray': bold ? '' : CURVE_DASH[id]
+      }, group);
+    };
+    SA.ORDER.forEach(function (id) { if (id !== state.curve) line(id, false); });
+    line(state.curve, true);
+
     var sel = currentCurve();
-    var spts = [];
-    for (var j = 1; j <= 200; j++) {
-      var vv = j / 200;
-      spts.push(x(vv).toFixed(1) + ',' + y(calc(vv).spl).toFixed(1));
-    }
-    el('polyline', { points: spts.join(' '), stroke: '#191919', 'stroke-width': 4 }, group);
     if (sel.steps) {
       for (var k = 1; k <= sel.steps; k++) {
-        el('circle', { cx: x(k / sel.steps), cy: y(calc(k / sel.steps).spl), r: 3, fill: '#fffa00', stroke: '#191919' }, group);
+        el('circle', { cx: x(k / sel.steps), cy: y(calc(k / sel.steps).spl), r: 2.5, fill: '#fffa00', stroke: '#191919' }, group);
       }
     }
 
-    // end-of-line labels (all curves meet at 100%, so stack them to the right)
-    var order = SA.ORDER.slice();
-    order.forEach(function (id, idx) {
-      var yy = T + 10 + idx * 16;
+    SA.ORDER.forEach(function (id, idx) {
+      var yy = T + 12 + idx * 18;
       var isSel = id === state.curve;
-      el('line', { x1: L + pw + 12, x2: L + pw + 30, y1: yy - 4, y2: yy - 4, stroke: isSel ? '#191919' : CURVE_GREY[id], 'stroke-width': isSel ? 4 : 1.6, 'stroke-dasharray': isSel ? '' : CURVE_DASH[id] }, svg);
-      text(svg, L + pw + 36, yy, SA.CURVES[id].label, { 'font-weight': isSel ? 700 : 400 });
+      el('line', {
+        x1: L + pw + 8, x2: L + pw + 24, y1: yy - 3, y2: yy - 3,
+        stroke: isSel ? '#191919' : CURVE_GREY[id], 'stroke-width': isSel ? 3.5 : 1.4, 'stroke-dasharray': isSel ? '' : CURVE_DASH[id]
+      }, svg);
+      text(svg, L + pw + 30, yy, SA.CURVES[id].label, { 'font-weight': isSel ? 700 : 400 });
     });
 
-    // current position marker
     var cur = calc(state.pos);
     if (isFinite(cur.spl)) {
       el('line', { x1: x(state.pos), x2: x(state.pos), y1: T, y2: T + ph, stroke: '#191919', 'stroke-width': 1 }, svg);
-      el('circle', { cx: x(state.pos), cy: y(cur.spl), r: 7, fill: '#fffa00', stroke: '#191919', 'stroke-width': 2 }, svg);
+      el('circle', { cx: x(state.pos), cy: y(cur.spl), r: 5.5, fill: '#fffa00', stroke: '#191919', 'stroke-width': 2 }, svg);
     }
     svg.setAttribute('aria-label', 'Level against slider position for each curve. At ' + Math.round(state.pos * 100) +
       '% on the ' + sel.label + ' curve the level is ' + fmt1(cur.spl) + ' dB SPL.');
   }
 
-  /* ---------- Chart: safe time vs level ---------- */
-  function drawTimeChart(spl) {
-    var svg = $('time-chart');
-    svg.textContent = '';
-    var W = 760, H = 380, L = 64, R = 20, T = 16, B = 44;
-    var pw = W - L - R, ph = H - T - B;
-    var xMin = 70, xMax = 120, yMinLog = 0, yMaxLog = Math.log10(86400);
-    var x = function (s) { return L + ((Math.min(xMax, Math.max(xMin, s)) - xMin) / (xMax - xMin)) * pw; };
-    var y = function (sec) { return T + (1 - (Math.log10(Math.max(1, Math.min(86400, sec))) - yMinLog) / (yMaxLog - yMinLog)) * ph; };
-
-    el('rect', { x: x(70), y: T, width: x(85) - x(70), height: ph, fill: '#e8eae7' }, svg);
-    el('rect', { x: x(85), y: T, width: x(100) - x(85), height: ph, fill: '#fffa00', opacity: .45 }, svg);
-    el('rect', { x: x(100), y: T, width: x(120) - x(100), height: ph, fill: '#d6342b', opacity: .12 }, svg);
-
-    [[1, '1 s'], [10, '10 s'], [60, '1 min'], [600, '10 min'], [3600, '1 h'], [28800, '8 h'], [86400, '24 h']].forEach(function (t) {
-      el('line', { x1: L, x2: L + pw, y1: y(t[0]), y2: y(t[0]), class: 'grid' }, svg);
-      text(svg, L - 8, y(t[0]) + 4, t[1], { 'text-anchor': 'end', class: 'tick' });
-    });
-    for (var g = 70; g <= 120; g += 10) {
-      el('line', { x1: x(g), x2: x(g), y1: T, y2: T + ph, class: 'grid' }, svg);
-      text(svg, x(g), T + ph + 18, g, { 'text-anchor': 'middle', class: 'tick' });
-    }
-    el('rect', { x: L, y: T, width: pw, height: ph, fill: 'none', stroke: '#191919' }, svg);
-    text(svg, x(77.5), T + 18, 'SAFE', { 'text-anchor': 'middle', class: 'axis-title' });
-    text(svg, x(92.5), T + 18, 'CAUTION', { 'text-anchor': 'middle', class: 'axis-title' });
-    text(svg, x(110), T + 18, 'DANGER', { 'text-anchor': 'middle', class: 'axis-title' });
-    text(svg, L + pw / 2, H - 6, 'Level (dB SPL)', { 'text-anchor': 'middle', class: 'axis-title' });
-    text(svg, 12, T + ph / 2, 'Safe time per day', { 'text-anchor': 'middle', class: 'axis-title', transform: 'rotate(-90 12 ' + (T + ph / 2) + ')' });
-
-    var pts = [];
-    for (var s = xMin; s <= xMax; s += 0.5) pts.push(x(s).toFixed(1) + ',' + y(SA.safeSeconds(s)).toFixed(1));
-    el('polyline', { points: pts.join(' '), fill: 'none', stroke: '#191919', 'stroke-width': 3 }, svg);
-
-    if (isFinite(spl)) {
-      var cx = x(spl), cy = y(SA.safeSeconds(spl));
-      el('line', { x1: cx, x2: cx, y1: T, y2: T + ph, stroke: '#191919', 'stroke-dasharray': '4 3' }, svg);
-      el('circle', { cx: cx, cy: cy, r: 8, fill: '#fffa00', stroke: '#191919', 'stroke-width': 2 }, svg);
-    }
-    svg.setAttribute('aria-label', 'Safe daily listening time against level. At ' + fmt1(spl) + ' dB the safe time is ' + fmtTime(SA.safeSeconds(spl)) + '.');
-  }
-
-  /* ---------- Limits table ---------- */
-  var TABLE_LEVELS = [82, 85, 88, 91, 94, 97, 100, 103, 106, 109, 112, 115, 118];
-  function drawTable(spl) {
-    var body = $('limit-table');
-    body.textContent = '';
-    var cur = null;
-    if (isFinite(spl)) {
-      TABLE_LEVELS.forEach(function (l) { if (l <= spl && (cur === null || l > cur)) cur = l; });
-    }
-    TABLE_LEVELS.forEach(function (l) {
-      var tr = document.createElement('tr');
-      if (l === cur) tr.className = 'is-current';
-      var a = document.createElement('td'); a.textContent = l + ' dB';
-      var b = document.createElement('td'); b.textContent = fmtTime(SA.safeSeconds(l));
-      tr.appendChild(a); tr.appendChild(b); body.appendChild(tr);
-    });
-  }
-
   /* ---------- Render ---------- */
+  function setPressed(nodes, on) {
+    Array.prototype.forEach.call(nodes, function (b) {
+      var active = on(b);
+      b.classList.toggle('is-active', active);
+      b.setAttribute('aria-pressed', active);
+    });
+  }
+
   function render() {
     var curve = currentCurve();
     var r = calc(state.pos);
 
-    // slider sync
     var max = sliderMax();
     var slider = $('slider');
     slider.max = max;
@@ -281,32 +184,18 @@
     $('slider-out').textContent = Math.round(state.pos * 100) + '%' + (curve.steps ? ' (step ' + Math.round(state.pos * max) + ' of ' + max + ')' : '');
 
     $('range-field').hidden = !curve.hasRange;
-    var rh = $('range-help');
-    rh.hidden = !curve.hasRange;
-    rh.textContent = state.curve === 'alsa'
-      ? 'Run "amixer -c 0 contents" in a terminal, find your playback control and read dBscale-min. Enter that value without the minus sign.'
-      : 'Check your device manual for its volume range in dB. 60 is a common value.';
-    var voltsMax = getVmax();
+    $('range-help').textContent = state.curve === 'alsa'
+      ? 'Run "amixer -c 0 contents" in a terminal, find your playback control and read dBscale-min. Enter it without the minus sign.'
+      : 'Check your device manual for its volume range in dB. 60 is common.';
     $('vout-field').hidden = state.srcMode !== 'v';
     $('pout-field').hidden = state.srcMode !== 'mw';
     $('derived-v').textContent = state.srcMode === 'mw'
-      ? 'That works out to ' + voltsMax.toFixed(2) + ' V RMS at full volume (V = √(P × load)).'
-      : '';
-    Array.prototype.forEach.call(document.querySelectorAll('[data-srcmode]'), function (b) {
-      var on = b.dataset.srcmode === state.srcMode;
-      b.classList.toggle('is-active', on); b.setAttribute('aria-pressed', on);
-    });
-    Array.prototype.forEach.call(curveBox.children, function (b) {
-      var on = b.dataset.curve === state.curve;
-      b.classList.toggle('is-active', on);
-      b.setAttribute('aria-pressed', on);
-    });
-    Array.prototype.forEach.call(document.querySelectorAll('[data-unit]'), function (b) {
-      var on = b.dataset.unit === state.unit;
-      b.classList.toggle('is-active', on); b.setAttribute('aria-pressed', on);
-    });
+      ? 'Works out to ' + getVmax().toFixed(2) + ' V RMS at full volume.' : '';
 
-    // readout
+    setPressed(curveBox.children, function (b) { return b.dataset.curve === state.curve; });
+    setPressed(document.querySelectorAll('[data-unit]'), function (b) { return b.dataset.unit === state.unit; });
+    setPressed(document.querySelectorAll('[data-srcmode]'), function (b) { return b.dataset.srcmode === state.srcMode; });
+
     var t = SA.tier(r.spl);
     $('spl').textContent = isFinite(r.spl) ? r.spl.toFixed(1) : '—';
     var chip = $('tier-chip');
@@ -317,28 +206,10 @@
     $('att').textContent = isFinite(r.attenuation) ? r.attenuation.toFixed(1) + ' dB' : 'Muted';
     $('volts').textContent = r.volts >= 0.1 ? r.volts.toFixed(2) + ' V' : (r.volts * 1000).toFixed(1) + ' mV';
     $('power').textContent = r.powerMw >= 1 ? r.powerMw.toFixed(1) + ' mW' : r.powerMw.toFixed(3) + ' mW';
-
     $('curve-note').textContent = curve.note + (curve.approx ? ' (Approximation.)' : '');
 
-    var full = calc(1);
-    drawCurveChart(full.spl);
-    drawTimeChart(r.spl);
-    drawTable(r.spl);
-    renderDose();
+    drawChart(calc(1).spl);
     writeHash();
-  }
-
-  function renderDose() {
-    var pct = dosePct();
-    $('dose-pct').textContent = (pct < 10 ? pct.toFixed(1) : Math.round(pct)) + '%';
-    $('dose-text').textContent = pct >= 100 ? 'over the daily allowance' : pct >= 85 ? 'caution, nearly at the limit' : 'of the daily allowance';
-    var fill = $('dose-fill');
-    fill.style.width = Math.min(100, pct) + '%';
-    fill.className = pct >= 100 ? 'is-over' : pct >= 85 ? 'is-caution' : '';
-    var bar = $('dose-bar');
-    bar.setAttribute('aria-valuenow', Math.round(Math.min(100, pct)));
-    bar.setAttribute('aria-valuetext', Math.round(pct) + ' percent of the daily allowance');
-    $('log-count').textContent = log.entries.length ? log.entries.length + ' session' + (log.entries.length > 1 ? 's' : '') + ' today' : 'Nothing logged today';
   }
 
   /* ---------- Events ---------- */
@@ -346,76 +217,47 @@
     var v = parseFloat(input.value);
     return isFinite(v) ? Math.min(hi, Math.max(lo, v)) : fallback;
   }
+  var bindNumber = function (id, key, lo, hi) {
+    $(id).addEventListener('input', function (e) { state[key] = readNumber(e.target, lo, hi, state[key]); render(); });
+  };
+  bindNumber('sens', 'sens', 40, 140);
+  bindNumber('imp', 'z', 1, 2000);
+  bindNumber('vmax', 'vout', 0.05, 20);
+  bindNumber('pmw', 'pmw', 0.1, 5000);
+  bindNumber('load', 'load', 1, 2000);
+  bindNumber('range', 'range', 10, 120);
 
-  $('sens').addEventListener('input', function (e) {
-    state.sens = readNumber(e.target, 40, 140, state.sens); render();
-  });
-  $('imp').addEventListener('input', function (e) {
-    state.z = readNumber(e.target, 1, 2000, state.z); render();
-  });
-  $('vmax').addEventListener('input', function (e) {
-    state.vout = readNumber(e.target, 0.05, 20, state.vout); render();
-  });
-  $('pmw').addEventListener('input', function (e) {
-    state.pmw = readNumber(e.target, 0.1, 5000, state.pmw); render();
-  });
-  $('load').addEventListener('input', function (e) {
-    state.load = readNumber(e.target, 1, 2000, state.load); render();
-  });
-  $('range').addEventListener('input', function (e) {
-    state.range = readNumber(e.target, 10, 120, state.range); render();
-  });
   $('content').addEventListener('change', function (e) { state.offset = parseFloat(e.target.value); render(); });
-  $('slider').addEventListener('input', function (e) {
-    state.pos = parseFloat(e.target.value) / sliderMax(); render();
-  });
-  curveBox.addEventListener('click', function (e) {
-    var b = e.target.closest('button');
-    if (!b) return;
-    state.curve = b.dataset.curve;
-    var steps = currentCurve().steps;
-    if (steps) state.pos = Math.round(state.pos * steps) / steps;
-    render();
-  });
+  $('slider').addEventListener('input', function (e) { state.pos = parseFloat(e.target.value) / sliderMax(); render(); });
+
   document.addEventListener('click', function (e) {
     var b = e.target.closest('button');
     if (!b) return;
-    if (b.dataset.unit && b.dataset.unit !== state.unit) {
-      // keep the spec-sheet number meaningful when switching units
+    if (b.dataset.curve) {
+      state.curve = b.dataset.curve;
+      var steps = currentCurve().steps;
+      if (steps) state.pos = Math.round(state.pos * steps) / steps;
+      render();
+    } else if (b.dataset.unit && b.dataset.unit !== state.unit) {
+      // keep the same physical headphone when switching units
       var perMw = SA.sensitivityPerMw(state.sens, state.unit, state.z);
       state.unit = b.dataset.unit;
-      state.sens = state.unit === 'mw' ? perMw : perMw + 10 * Math.log10(1000 / state.z);
-      state.sens = Math.round(state.sens * 10) / 10;
+      state.sens = Math.round((state.unit === 'mw' ? perMw : perMw + 10 * Math.log10(1000 / state.z)) * 10) / 10;
       $('sens').value = state.sens;
       render();
     } else if (b.dataset.srcmode && b.dataset.srcmode !== state.srcMode) {
       state.srcMode = b.dataset.srcmode; render();
     } else if (b.dataset.pos) {
       var c = currentCurve();
-      state.pos = c.steps ? Math.round(parseFloat(b.dataset.pos) * c.steps) / c.steps : parseFloat(b.dataset.pos);
+      var p = parseFloat(b.dataset.pos);
+      state.pos = c.steps ? Math.round(p * c.steps) / c.steps : p;
       render();
-    } else if (b.dataset.add) {
-      $('minutes').value = b.dataset.add; addEntry(parseFloat(b.dataset.add));
     }
   });
 
-  function addEntry(min) {
-    var r = calc(state.pos);
-    if (!isFinite(r.spl)) return;
-    if (log.date !== today()) log = { date: today(), entries: [] };
-    log.entries.push({ min: min, spl: Math.round(r.spl * 10) / 10 });
-    saveLog(log); renderDose();
-  }
-  $('add').addEventListener('click', function () {
-    var m = readNumber($('minutes'), 1, 1440, 30);
-    addEntry(m);
-  });
-  $('undo').addEventListener('click', function () { log.entries.pop(); saveLog(log); renderDose(); });
-  $('reset').addEventListener('click', function () { log = { date: today(), entries: [] }; saveLog(log); renderDose(); });
-
   $('share').addEventListener('click', function () {
     var status = $('share-status');
-    var done = function (ok) { status.textContent = ok ? 'Link copied.' : 'Copy the address bar to share this setup.'; };
+    var done = function (ok) { status.textContent = ok ? 'Link copied' : 'Copy the address bar to share'; };
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(location.href).then(function () { done(true); }, function () { done(false); });
     } else done(false);

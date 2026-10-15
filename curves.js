@@ -58,7 +58,7 @@
         var range = opts && opts.range > 0 ? opts.range : 60;
         return v <= 0 ? -Infinity : -range * (1 - v);
       },
-      note: 'ALSA exposes each driver\'s own hardware dB scale, and the slider is linear in dB between the control\'s minimum and 0 dB. The range depends on the codec or DAC. Run "amixer -c 0 contents" and read dBscale-min for your playback control, then enter that number as the dB range.'
+      note: 'ALSA exposes each driver\'s own hardware dB scale, and the slider is linear in dB between the control\'s minimum and 0 dB. The range depends on the codec or DAC.'
     },
     generic: {
       id: 'generic', label: 'Custom dB', where: 'Any other device', steps: null, approx: false, hasRange: true,
