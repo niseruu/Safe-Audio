@@ -74,9 +74,9 @@
           <label class="field">
             <span>Content</span>
             <select id="content" aria-label="Content type">
-              <option value="0">Full-scale tone</option>
+              <option value="0">Full-scale (0 dB)</option>
               <option value="-8">Loud master (−8 dB)</option>
-              <option value="-12" selected>Typical music (−12 dB)</option>
+              <option value="-12" selected>Typical (−12 dB)</option>
               <option value="-18">Classical (−18 dB)</option>
             </select>
           </label>
@@ -92,7 +92,7 @@
         <p class="help">Pick the system whose slider you use. Each one maps slider position to loudness differently.</p>
         <div class="filter" id="curve-buttons" role="group" aria-label="Volume slider type"></div>
         <div class="mt" id="range-field" hidden>
-          <label class="inline">dB range below max <input id="range" type="number" inputmode="decimal" step="1" min="10" max="120" value="60"></label>
+          <label class="inline">dB range below max <input id="range" type="number" inputmode="decimal" step="0.25" min="10" max="130" value="60"></label>
           <p class="note" id="range-help"></p>
         </div>
         <p class="note curve-note" id="curve-note"></p>
@@ -166,7 +166,7 @@
       </ol>
       <ul>
         <li>It uses spec-sheet figures. It is a model, not a measurement. Only a calibrated meter or ear coupler measures the real level.</li>
-        <li>The Windows, Android and Apple curves are approximations. Drivers and manufacturers change the real gain.</li>
+        <li>The Windows, Android and Apple curves are approximations. Microsoft and Apple do not publish theirs, and drivers and manufacturers change the real gain, including the minimum dB on Windows.</li>
         <li>Bluetooth headphones and many wireless dongles add their own gain on top of the system slider, which this does not model.</li>
         <li>Levels here are unweighted while both limits are in dBA, so the result is conservative for bass-heavy music.</li>
         <li>Ear coupling shifts the level by a few dB. Limits are population averages, not medical advice. If your ears ring or sound muffled after listening, turn it down.</li>

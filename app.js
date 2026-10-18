@@ -7,8 +7,11 @@
 
   var state = {
     sens: 100, unit: 'mw', z: 32, srcMode: 'v', vout: 1, pmw: 30, load: 32,
-    curve: 'linux', pos: 0.5, range: 60, offset: -12, preamp: 0, std: 'who'
+    curve: 'linux', pos: 0.5, ranges: { windows: 63.5, alsa: 60, generic: 60 }, offset: -12, preamp: 0, std: 'who'
   };
+
+  /* dB range below max for the curves that have one (Windows minimum, ALSA, custom). */
+  function rangeFor(id) { return state.ranges[id] || 60; }
 
   /* Max RMS voltage at 100% volume, from whichever form the spec sheet used. */
   function getVmax() {
@@ -43,7 +46,10 @@
     if ((s = num('ld', 1, 2000)) !== null) state.load = s;
     if (SA.CURVES[p.get('c')]) state.curve = p.get('c');
     if ((s = num('p', 0, 1)) !== null) state.pos = s;
-    if ((s = num('r', 10, 120)) !== null) state.range = s;
+    if ((s = num('r', 10, 130)) !== null) { state.ranges.alsa = s; state.ranges.generic = s; }
+    if ((s = num('rw', 10, 130)) !== null) state.ranges.windows = s;
+    if ((s = num('ra', 10, 130)) !== null) state.ranges.alsa = s;
+    if ((s = num('rg', 10, 130)) !== null) state.ranges.generic = s;
     if ((s = num('o', -30, 0)) !== null) state.offset = s;
     if ((s = num('pa', -30, 20)) !== null) state.preamp = s;
     if (SA.STANDARDS[p.get('std')]) state.std = p.get('std');
@@ -51,7 +57,7 @@
   function writeHash() {
     var p = new URLSearchParams({
       s: state.sens, u: state.unit, z: state.z, vm: state.vout, sm: state.srcMode, pm: state.pmw, ld: state.load,
-      c: state.curve, p: state.pos.toFixed(3), r: state.range, o: state.offset, pa: state.preamp, std: state.std
+      c: state.curve, p: state.pos.toFixed(3), rw: state.ranges.windows, ra: state.ranges.alsa, rg: state.ranges.generic, o: state.offset, pa: state.preamp, std: state.std
     });
     try { history.replaceState(null, '', '#' + p.toString()); } catch (e) { /* ignore */ }
   }
@@ -87,7 +93,7 @@
     var target = levelForSeconds(secs);
     var top = calc(1).spl;
     if (target >= top) return { pos: 1, level: target, any: true };
-    var r = SA.loudestPositionAtOrBelow(state.curve, target - top, { range: state.range });
+    var r = SA.loudestPositionAtOrBelow(state.curve, target - top, { range: rangeFor(state.curve) });
     return { pos: r.pos, step: r.step, level: target, any: false };
   }
   var fmt1 = function (x) { return isFinite(x) ? x.toFixed(1) : '—'; };
@@ -101,8 +107,8 @@
   function setPosFromSpl(spl) {
     var top = calc(1).spl;
     if (spl <= 0) { state.pos = 0; return; }
-    var floor = currentCurve().hasRange ? -state.range : -Infinity;
-    var v = SA.volumeFromDb(state.curve, spl - top, { range: state.range }, floor);
+    var floor = currentCurve().hasRange ? -rangeFor(state.curve) : -Infinity;
+    var v = SA.volumeFromDb(state.curve, spl - top, { range: rangeFor(state.curve) }, floor);
     var steps = currentCurve().steps;
     state.pos = steps ? Math.round(v * steps) / steps : v;
   }
@@ -110,7 +116,7 @@
   function calc(pos, curve) {
     return SA.compute({
       sens: state.sens, unit: state.unit, z: state.z, vmax: getVmax(),
-      curve: curve || state.curve, v: pos, range: state.range, offset: state.offset + state.preamp
+      curve: curve || state.curve, v: pos, range: rangeFor(curve || state.curve), offset: state.offset + state.preamp
     });
   }
 
@@ -241,7 +247,9 @@
     $('range-field').hidden = !curve.hasRange;
     $('range-help').textContent = state.curve === 'alsa'
       ? 'Run "amixer -c 0 contents" in a terminal, find your playback control and read dBscale-min. Enter it without the minus sign.'
-      : 'Check your device manual for its volume range in dB. 60 is common.';
+      : state.curve === 'windows'
+        ? 'Your audio device\'s minimum volume in dB, without the minus sign (it varies by driver). 63.5 comes from one Windows 11 device, so keep it if unsure.'
+        : 'Check your device manual for its volume range in dB. 60 is common.';
     $('vout-field').hidden = state.srcMode !== 'v';
     $('pout-field').hidden = state.srcMode !== 'mw';
     $('derived-v').textContent = state.srcMode === 'mw'
@@ -290,7 +298,10 @@
   bindNumber('vmax', 'vout', 0.05, 20);
   bindNumber('pmw', 'pmw', 0.1, 5000);
   bindNumber('load', 'load', 1, 2000);
-  bindNumber('range', 'range', 10, 120);
+  $('range').addEventListener('input', function (e) {
+    state.ranges[state.curve] = readNumber(e.target, 10, 130, rangeFor(state.curve));
+    render();
+  });
   bindNumber('preamp', 'preamp', -30, 20);
 
   $('content').addEventListener('change', function (e) { state.offset = parseFloat(e.target.value); render(); });
@@ -302,6 +313,7 @@
     if (!b) return;
     if (b.dataset.curve) {
       state.curve = b.dataset.curve;
+      $('range').value = rangeFor(state.curve);
       var steps = currentCurve().steps;
       if (steps) state.pos = Math.round(state.pos * steps) / steps;
       render();
@@ -344,7 +356,7 @@
   $('vmax').value = state.vout;
   $('pmw').value = state.pmw;
   $('load').value = state.load;
-  $('range').value = state.range;
+  $('range').value = rangeFor(state.curve);
   $('preamp').value = state.preamp;
   $('content').value = String(state.offset);
   if ($('content').value !== String(state.offset)) { $('content').value = '0'; state.offset = 0; }

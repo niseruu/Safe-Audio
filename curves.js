@@ -4,6 +4,9 @@
 
   var clamp = function (x, lo, hi) { return Math.min(hi, Math.max(lo, x)); };
 
+  /* The dB range a curve was given, or its default. */
+  function rangeOf(opts, fallback) { return opts && opts.range > 0 ? opts.range : fallback; }
+
   /* Piecewise-linear interpolation of [x, y] points, clamped at both ends. */
   function interpolate(points, x) {
     if (x <= points[0][0]) return points[0][1];
@@ -37,10 +40,17 @@
       note: 'PulseAudio and PipeWire map the slider percentage to amplitude with a cubic curve (amplitude = percent³), which is 60·log10(percent) dB. 50% is −18 dB. Raw ALSA mixers can instead expose the hardware dB scale directly.'
     },
     windows: {
-      id: 'windows', label: 'Windows', where: 'Master volume scalar', steps: null, approx: true,
-      db: function (v) { return v <= 0 ? -Infinity : 40 * Math.log10(v); },
-      vol: function (db) { return Math.pow(10, db / 40); },
-      note: 'Windows exposes an audio-taper scalar that is not linear in amplitude. Microsoft does not publish the exact curve and it varies with the driver, so this uses amplitude = scalar², which is 40·log10(scalar) dB. 50% is −12 dB. Treat it as an approximation.'
+      id: 'windows', label: 'Windows', where: 'Master volume, 1.75 taper', steps: null, approx: true, hasRange: true, defaultRange: 63.5,
+      db: function (v, opts) {
+        if (v <= 0) return -Infinity;
+        var a = Math.pow(10, -rangeOf(opts, 63.5) / 35);
+        return 35 * Math.log10(a + (1 - a) * v);
+      },
+      vol: function (db, opts) {
+        var a = Math.pow(10, -rangeOf(opts, 63.5) / 35);
+        return (Math.pow(10, db / 35) - a) / (1 - a);
+      },
+      note: 'Microsoft does not publish this curve. This models a 1.75-power taper from the device\'s minimum dB to 0 dB: 35 · log10(a + (1 − a) · slider), with a = 10^(minimum ÷ 35). It matches the one public measurement found (−10.3047 dB at 50% on a −63.5 dB device).'
     },
     android: {
       id: 'android', label: 'Android', where: 'AOSP headset curve', steps: 15, approx: true,
@@ -61,7 +71,7 @@
       note: 'iOS and macOS use 16 volume steps with an exponential taper. Apple does not publish the gain table, so this is an approximation: amplitude = (10^(3·v) − 1) ÷ 999, giving about −30 dB at step 8 of 16.'
     },
     alsa: {
-      id: 'alsa', label: 'Linux driver', where: 'ALSA, driver specific', steps: null, approx: false, hasRange: true,
+      id: 'alsa', label: 'Linux driver', where: 'ALSA, driver specific', steps: null, approx: false, hasRange: true, defaultRange: 60,
       db: function (v, opts) {
         var range = opts && opts.range > 0 ? opts.range : 60;
         return v <= 0 ? -Infinity : -range * (1 - v);
@@ -70,7 +80,7 @@
       note: 'ALSA exposes each driver\'s own hardware dB scale, and the slider is linear in dB between the control\'s minimum and 0 dB. The range depends on the codec or DAC. alsamixer\'s percentage is not always linear in dB, so this models the raw dB scale.'
     },
     generic: {
-      id: 'generic', label: 'Custom dB', where: 'Any other device', steps: null, approx: false, hasRange: true,
+      id: 'generic', label: 'Custom dB', where: 'Any other device', steps: null, approx: false, hasRange: true, defaultRange: 60,
       db: function (v, opts) {
         var range = opts && opts.range > 0 ? opts.range : 60;
         return v <= 0 ? -Infinity : -range * (1 - v);
@@ -104,7 +114,7 @@
   function loudestPositionAtOrBelow(curveId, db, opts) {
     var curve = CURVES[curveId];
     if (db >= 0) return { pos: 1, step: curve.steps || null };
-    var floor = curve.hasRange ? -((opts && opts.range) || 60) : -Infinity;
+    var floor = curve.hasRange ? -rangeOf(opts, curve.defaultRange || 60) : -Infinity;
     var v = volumeFromDb(curveId, db, opts, floor);
     var n = curve.steps || 100;
     var k = Math.floor(v * n + 1e-9);

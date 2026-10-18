@@ -16,8 +16,24 @@ test('linux curve is cubic (60 log10)', () => {
   near(SA.attenuationDb('linux', 1), 0);
 });
 
-test('windows approximation is 40 log10', () => {
-  near(SA.attenuationDb('windows', 0.5), -12.04);
+test('windows: 1.75-power taper, 35 * log10(a + (1 - a) * v) with a = 10^(min / 35)', () => {
+  const min = 63.5, a = Math.pow(10, -min / 35);
+  for (const v of [0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 1]) {
+    near(SA.attenuationDb('windows', v, { range: min }), 35 * Math.log10(a + (1 - a) * v), 1e-9);
+  }
+  near(SA.attenuationDb('windows', 1, { range: min }), 0, 1e-9);
+  // just above zero it approaches the device minimum
+  near(SA.attenuationDb('windows', 1e-9, { range: min }), -min, 1e-3);
+  assert.strictEqual(SA.attenuationDb('windows', 0, { range: min }), -Infinity);
+});
+
+test('windows matches the public measurement: 0.5 scalar is -10.3047 dB on a -63.5 dB device', () => {
+  // Microsoft Q&A "How to calculate the speaker's volume scale based on the decibel volume value?"
+  near(SA.attenuationDb('windows', 0.5, { range: 63.5 }), -10.304707, 0.001);
+});
+
+test('windows default range is 63.5 dB when none is given', () => {
+  near(SA.attenuationDb('windows', 0.5), SA.attenuationDb('windows', 0.5, { range: 63.5 }), 1e-9);
 });
 
 test('android interpolates the AOSP headset table', () => {
