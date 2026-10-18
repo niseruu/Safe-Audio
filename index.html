@@ -28,8 +28,8 @@
   <main class="layout">
     <form class="inputs" id="form" autocomplete="off" onsubmit="return false">
       <section class="card">
-        <h2><i>1</i> Headphone sensitivity</h2>
-        <p class="help">On the spec sheet, as dB/mW or dB/V. Pick the unit it uses.</p>
+        <h2><i>1</i> Headphone</h2>
+        <p class="help">From the spec sheet: sensitivity as dB/mW or dB/V. Pick the unit it uses.</p>
         <div class="row sens-row">
           <input id="sens" type="number" inputmode="decimal" step="0.1" min="40" max="140" value="100" aria-label="Sensitivity">
           <div class="toggle" role="group" aria-label="Sensitivity unit">
@@ -37,17 +37,14 @@
             <button type="button" data-unit="v" aria-pressed="false">dB/V</button>
           </div>
         </div>
-      </section>
-      <section class="card">
-        <h2><i>2</i> Headphone impedance</h2>
-        <p class="help">Also on the spec sheet, in ohms (Ω).</p>
-        <div class="row">
+        <div class="row mt" id="imp-row">
           <input id="imp" type="number" inputmode="decimal" step="1" min="1" max="2000" value="32" aria-label="Impedance in ohms">
-          <span class="unit">Ω</span>
+          <span class="unit">Ω impedance</span>
         </div>
+        <p class="note" id="sens-note"></p>
       </section>
       <section class="card">
-        <h2><i>3</i> Source output at full volume</h2>
+        <h2><i>2</i> Source output at full volume</h2>
         <p class="help">What your phone, computer or amp can deliver at 100% volume, from its spec sheet. Not sure? Try 1 V.</p>
         <div class="row wrap">
           <div class="toggle" role="group" aria-label="Output form">
@@ -67,8 +64,8 @@
         </div>
         <p class="note" id="derived-v"></p>
       </section>
-      <section class="card">
-        <h2><i>4</i> What you play</h2>
+      <section class="card span-2">
+        <h2><i>3</i> What you play</h2>
         <p class="help">Music is quieter than a full-scale tone (the worst case), so this defaults to typical music. Using an EQ app? Add its preamp.</p>
         <div class="row two">
           <label class="field">
@@ -84,11 +81,11 @@
             <span>EQ preamp (dB)</span>
             <input id="preamp" type="number" inputmode="decimal" step="0.5" min="-30" max="20" value="0" aria-label="EQ preamp in decibels">
           </label>
+          <p class="note row-note">Preamp is the gain slider in your EQ app, usually negative (for example −6). A boosted band is still louder by its own boost.</p>
         </div>
-        <p class="note">Preamp is the gain slider in your EQ app, usually negative (for example −6). A boosted band is still louder by its own boost.</p>
       </section>
       <section class="card span-2">
-        <h2><i>5</i> Volume slider type</h2>
+        <h2><i>4</i> Volume slider type</h2>
         <p class="help">Pick the system whose slider you use. Each one maps slider position to loudness differently.</p>
         <div class="filter" id="curve-buttons" role="group" aria-label="Volume slider type"></div>
         <div class="mt" id="range-field" hidden>
@@ -98,7 +95,7 @@
         <p class="note curve-note" id="curve-note"></p>
       </section>
       <section class="card span-2">
-        <h2><i>6</i> Volume position</h2>
+        <h2><i>5</i> Volume position</h2>
         <p class="help">Move either slider, or tap how long you listen each day to set the loudest safe volume.</p>
         <div class="volume-grid">
         <div class="vol-sliders">

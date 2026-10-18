@@ -2,7 +2,7 @@
 
 A safe listening calculator whose volume slider follows the logarithmic curves real operating systems use, instead of a straight line.
 
-Follow the six steps: headphone sensitivity, headphone impedance, source output at full volume (volts, or mW into a load), what you play (content type, defaulting to typical music, and EQ preamp), volume slider type, and volume position (a volume slider, a linked 0 dB to max dB SPL level slider, and buttons for how long you listen each day that set the loudest safe volume, snapped down to a real step on Android and Apple). It estimates the level at the ear, the safe listening time (WHO/ITU by default: 80 dB for 8 h a day, or NIOSH: 85 dB for 8 h; both halve every 3 dB, and 70 dB and below is unlimited) at that level.
+Follow the five steps: headphone (sensitivity as dB/mW or dB/V, plus impedance when it is in dB/mW), source output at full volume (volts, or mW into a load), what you play (content type, defaulting to typical music, and EQ preamp), volume slider type, and volume position (a volume slider, a linked 0 dB to max dB SPL level slider, and buttons for how long you listen each day that set the loudest safe volume, snapped down to a real step on Android and Apple). It estimates the level at the ear, the safe listening time (WHO/ITU by default: 80 dB for 8 h a day, or NIOSH: 85 dB for 8 h; both halve every 3 dB, and 70 dB and below is unlimited) at that level.
 
 ## Slider curves
 

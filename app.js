@@ -250,6 +250,10 @@
       : state.curve === 'windows'
         ? 'Your audio device\'s minimum volume in dB, without the minus sign (it varies by driver). 63.5 comes from one Windows 11 device, so keep it if unsure.'
         : 'Check your device manual for its volume range in dB. 60 is common.';
+    $('imp-row').hidden = state.unit !== 'mw';
+    $('sens-note').textContent = state.unit === 'mw'
+      ? 'Same as ' + (state.sens + 10 * Math.log10(1000 / state.z)).toFixed(1) + ' dB/V at ' + state.z + ' Ω.'
+      : 'In dB/V the level depends only on the voltage, so impedance is not needed.';
     $('vout-field').hidden = state.srcMode !== 'v';
     $('pout-field').hidden = state.srcMode !== 'mw';
     $('derived-v').textContent = state.srcMode === 'mw'
@@ -278,7 +282,7 @@
     var full = calc(1).spl;
     $('spl-max').textContent = isFinite(full) ? full.toFixed(1) + ' dB' : '—';
     $('volts').textContent = r.volts >= 0.1 ? r.volts.toFixed(2) + ' V' : (r.volts * 1000).toFixed(1) + ' mV';
-    $('power').textContent = r.powerMw >= 1 ? r.powerMw.toFixed(1) + ' mW' : r.powerMw.toFixed(3) + ' mW';
+    $('power').textContent = state.unit !== 'mw' ? '—' : r.powerMw >= 1 ? r.powerMw.toFixed(1) + ' mW' : r.powerMw.toFixed(3) + ' mW';
     $('curve-note').textContent = curve.note + (curve.approx ? ' (Approximation.)' : '');
 
     drawChart(calc(1).spl);
@@ -318,11 +322,7 @@
       if (steps) state.pos = Math.round(state.pos * steps) / steps;
       render();
     } else if (b.dataset.unit && b.dataset.unit !== state.unit) {
-      // keep the same physical headphone when switching units
-      var perMw = SA.sensitivityPerMw(state.sens, state.unit, state.z);
       state.unit = b.dataset.unit;
-      state.sens = Math.round((state.unit === 'mw' ? perMw : perMw + 10 * Math.log10(1000 / state.z)) * 10) / 10;
-      $('sens').value = state.sens;
       render();
     } else if (b.dataset.srcmode && b.dataset.srcmode !== state.srcMode) {
       state.srcMode = b.dataset.srcmode; render();

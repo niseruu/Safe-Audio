@@ -221,3 +221,6 @@ input[type="range"]::-moz-range-thumb { width: 1.2rem; height: 1.2rem; border: 2
 .credit a { border-bottom: 1px solid var(--line); }
 .credit a:hover { color: var(--ink); border-bottom-color: var(--ink); background: var(--signal); }
 @media (max-width: 44rem) { .credit { position: static; margin-top: .9rem; } }
+.row.two > .field { max-width: 20rem; }
+.row.two .row-note { flex: 2 1 0; align-self: end; margin: 0 0 .1rem; }
+@media (max-width: 44rem) { .row.two { flex-wrap: wrap; } .row.two .row-note { flex-basis: 100%; margin-top: .4rem; } }
