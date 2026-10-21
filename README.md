@@ -11,7 +11,7 @@ Follow the five steps: headphone (sensitivity as dB/mW or dB/V, plus impedance w
 | Linux | PulseAudio / PipeWire cubic: amplitude = percent³ (60·log10 dB) |
 | Linux driver | ALSA, driver specific: linear in dB over the range from `amixer` (dBscale-min) |
 | Windows | Approximation: 1.75-power taper between the device's minimum dB and 0 dB, `35 * log10(a + (1 - a) * slider)` with `a = 10^(min / 35)`. Matches a public measurement (−10.3047 dB at 50% on a −63.5 dB device) |
-| Android | AOSP default headset curve, 15 steps |
+| Android | AOSP music curve (−58, −40, −17, 0 dB at curve indexes 1, 20, 60, 100), 15 steps, step 0 mutes. Verified against the AOSP source |
 | Apple | Approximation: exponential taper, 16 steps |
 | Custom dB | Linear in dB over an adjustable range, for any other device |
 | Linear | Naive straight-line model, for comparison |

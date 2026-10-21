@@ -19,8 +19,17 @@
     return points[points.length - 1][1];
   }
 
-  /* AOSP default headset media curve: [volume index %, dB]. */
-  var ANDROID_HEADSET = [[1, -49.5], [33, -33.5], [66, -17], [100, 0]];
+  /*
+   * AOSP DEFAULT_MEDIA_VOLUME_CURVE: [curve index, dB]. STREAM_MUSIC uses it for every device
+   * category except hearing aids (audio_policy_volumes.xml, default_volume_tables.xml).
+   */
+  var ANDROID_MEDIA = [[1, -58], [20, -40], [60, -17], [100, 0]];
+  var ANDROID_STEPS = 15;
+  /* AudioPolicy's VolumeCurve::volIndexToDb: integer curve index = 100 * step / steps, then linear in dB. */
+  function androidStepDb(step) {
+    if (step <= 0) return -Infinity;
+    return interpolate(ANDROID_MEDIA, Math.floor(100 * step / ANDROID_STEPS));
+  }
 
   /*
    * Each curve returns the attenuation in dB (<= 0) for a slider position v in [0, 1].
@@ -53,13 +62,13 @@
       note: 'Microsoft does not publish this curve. This models a 1.75-power taper from the device\'s minimum dB to 0 dB: 35 · log10(a + (1 − a) · slider), with a = 10^(minimum ÷ 35). It matches the one public measurement found (−10.3047 dB at 50% on a −63.5 dB device).'
     },
     android: {
-      id: 'android', label: 'Android', where: 'AOSP headset curve', steps: 15, approx: true,
-      db: function (v) { return v <= 0 ? -Infinity : interpolate(ANDROID_HEADSET, v * 100); },
+      id: 'android', label: 'Android', where: 'AOSP music curve', steps: ANDROID_STEPS, approx: true,
+      db: function (v) { return androidStepDb(Math.round(v * ANDROID_STEPS)); },
       vol: function (db) {
-        var swapped = ANDROID_HEADSET.map(function (pt) { return [pt[1], pt[0]]; });
+        var swapped = ANDROID_MEDIA.map(function (pt) { return [pt[1], pt[0]]; });
         return interpolate(swapped, db) / 100;
       },
-      note: 'Android music volume has 15 steps, and the framework maps each step to a gain with a table of control points. This uses the AOSP default headset curve (1% → −49.5 dB, 33% → −33.5 dB, 66% → −17 dB, 100% → 0 dB). Manufacturers often change the table, so real devices differ.'
+      note: 'Android music volume has 15 steps by default, and each step goes through the AOSP media curve: index 1 is −58 dB, 20 is −40 dB, 60 is −17 dB and 100 is 0 dB, linear in dB between them, with step 0 muting. Wired, USB and Bluetooth-headset music all use it. Phone makers can change the steps or the table, and Bluetooth headphones with absolute volume apply their own curve instead.'
     },
     apple: {
       id: 'apple', label: 'Apple', where: 'iOS / macOS', steps: 16, approx: true,
@@ -114,6 +123,13 @@
   function loudestPositionAtOrBelow(curveId, db, opts) {
     var curve = CURVES[curveId];
     if (db >= 0) return { pos: 1, step: curve.steps || null };
+    if (curve.steps) {
+      // walk down from the top step to the first one that is quiet enough
+      for (var k = curve.steps; k > 0; k--) {
+        if (curve.db(k / curve.steps, opts) <= db + 1e-9) return { pos: k / curve.steps, step: k };
+      }
+      return { pos: 0, step: 0 };
+    }
     var floor = curve.hasRange ? -rangeOf(opts, curve.defaultRange || 60) : -Infinity;
     var v = volumeFromDb(curveId, db, opts, floor);
     var n = curve.steps || 100;
@@ -179,7 +195,7 @@
   }
 
   var api = {
-    CURVES: CURVES, ORDER: ORDER, ANDROID_HEADSET: ANDROID_HEADSET,
+    CURVES: CURVES, ORDER: ORDER, ANDROID_MEDIA: ANDROID_MEDIA,
     attenuationDb: attenuationDb, volumeFromDb: volumeFromDb, loudestPositionAtOrBelow: loudestPositionAtOrBelow, sensitivityPerMw: sensitivityPerMw,
     compute: compute, safeSeconds: safeSeconds, tier: tier, risk: risk, standardOf: standardOf,
     STANDARDS: STANDARDS, UNLIMITED_DB: UNLIMITED_DB, clamp: clamp

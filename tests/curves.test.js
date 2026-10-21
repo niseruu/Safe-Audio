@@ -36,11 +36,22 @@ test('windows default range is 63.5 dB when none is given', () => {
   near(SA.attenuationDb('windows', 0.5), SA.attenuationDb('windows', 0.5, { range: 63.5 }), 1e-9);
 });
 
-test('android interpolates the AOSP headset table', () => {
-  near(SA.attenuationDb('android', 0.33), -33.5);
-  near(SA.attenuationDb('android', 0.66), -17);
-  near(SA.attenuationDb('android', 1), 0);
-  assert.strictEqual(SA.attenuationDb('android', 0), -Infinity);
+test('android: AOSP media curve with the integer step mapping from VolumeCurve::volIndexToDb', () => {
+  // curve points (index, dB): (1,-58) (20,-40) (60,-17) (100,0); x = floor(100 * step / 15)
+  const at = (step) => SA.attenuationDb('android', step / 15);
+  assert.strictEqual(at(0), -Infinity);                  // step 0 mutes
+  near(at(1), -58 + (6 - 1) * (18 / 19), 1e-9);          // x = 6  -> -53.263
+  near(at(3), -40, 1e-9);                                // x = 20 exactly on a point
+  near(at(8), -40 + (53 - 20) * (23 / 40), 1e-9);        // x = 53 -> -21.025
+  near(at(9), -17, 1e-9);                                // x = 60 exactly on a point
+  near(at(12), -17 + (80 - 60) * (17 / 40), 1e-9);       // x = 80 -> -8.5
+  near(at(15), 0, 1e-9);                                 // top step is 0 dB
+  assert.deepStrictEqual(SA.ANDROID_MEDIA, [[1, -58], [20, -40], [60, -17], [100, 0]]);
+});
+
+test('android is a staircase: positions between two steps snap to the nearest step', () => {
+  near(SA.attenuationDb('android', 0.30), SA.attenuationDb('android', 5 / 15), 1e-12);
+  near(SA.attenuationDb('android', 0.36), SA.attenuationDb('android', 5 / 15), 1e-12);
 });
 
 test('apple approximation hits 0 dB at max and about -30 dB at half', () => {
@@ -136,14 +147,15 @@ test('offset (content plus EQ preamp) shifts the level by the same number of dB'
   near(SA.compute({ ...base, offset: -12 + 3 }).spl, a - 9, 1e-9);
 });
 
-test('volumeFromDb is the inverse of attenuationDb on every curve', () => {
+test('volumeFromDb is the inverse of attenuationDb on every curve (to within a step on stepped ones)', () => {
   const opts = { range: 60 };
   for (const id of SA.ORDER) {
+    const steps = SA.CURVES[id].steps;
     for (let i = 5; i <= 100; i += 5) {
-      const v = i / 100;
+      const v = steps ? Math.round((i / 100) * steps) / steps : i / 100;
       const db = SA.attenuationDb(id, v, opts);
       if (db < -80) continue;
-      near(SA.volumeFromDb(id, db, opts), v, 1e-6);
+      near(SA.volumeFromDb(id, db, opts), v, steps ? 0.01 : 1e-6);
     }
   }
 });
@@ -178,6 +190,8 @@ test('loudestPositionAtOrBelow never lands louder than the target, and is the lo
 test('loudestPositionAtOrBelow: at or above 0 dB is max volume, and an unreachable target is mute', () => {
   assert.strictEqual(SA.loudestPositionAtOrBelow('linux', 0).pos, 1);
   assert.strictEqual(SA.loudestPositionAtOrBelow('android', 5).step, 15);
+  assert.strictEqual(SA.loudestPositionAtOrBelow('android', -53.3).step, 0);   // step 1 is -53.26, slightly louder
+  assert.strictEqual(SA.loudestPositionAtOrBelow('android', -53.2).step, 1);
   assert.strictEqual(SA.loudestPositionAtOrBelow('generic', -80, { range: 60 }).pos, 0);
   assert.strictEqual(SA.loudestPositionAtOrBelow('android', -60).step, 0);
 });
